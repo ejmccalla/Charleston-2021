@@ -10,11 +10,14 @@ import org.apache.logging.log4j.Logger;
 // import edu.wpi.first.wpilibj.CAN;
 // import java.time.LocalDateTime;
 
+// ---------- ROBOT CHARACTERIZATION ----------
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import java.util.ArrayList;
+import edu.wpi.first.wpilibj.livewindow.LiveWindow;
+// ---------- ROBOT CHARACTERIZATION ----------
 
 /**
 * The Robot class contains the RobotContainer and data logger objects and
@@ -32,12 +35,21 @@ public class Robot extends TimedRobot {
     // private LocalDateTime mLocalDateTime;
     // private byte[] mCanbusLoggerData = {0, 0, 0, 0, 0, 0, 0, 0};
 
+    // ---------- ROBOT CHARACTERIZATION ----------
+    String data = "";
+    int counter = 0;
+    double startTime = 0;
     double priorAutospeed = 0;
     double[] numberArray = new double[10];
     ArrayList<Double> entries = new ArrayList<Double>();
     NetworkTableEntry autoSpeedEntry = NetworkTableInstance.getDefault().getEntry("/robot/autospeed");
     NetworkTableEntry telemetryEntry = NetworkTableInstance.getDefault().getEntry("/robot/telemetry");
     NetworkTableEntry rotateEntry = NetworkTableInstance.getDefault().getEntry("/robot/rotate");
+    public Robot() {
+        super(.005);
+        LiveWindow.disableAllTelemetry();
+      }    
+    // ---------- ROBOT CHARACTERIZATION ----------
 
 
     /**
@@ -54,9 +66,10 @@ public class Robot extends TimedRobot {
         mRobotContainer.UpdateSmartDashboard();
 
 
-        // Set the update rate instead of using flush because of a ntcore bug
-        // -> probably don't want to do this on a robot in competition
+        // ---------- ROBOT CHARACTERIZATION ----------
         NetworkTableInstance.getDefault().setUpdateRate(0.010);
+        // ---------- ROBOT CHARACTERIZATION ----------
+
     }
 
     /**
@@ -70,6 +83,21 @@ public class Robot extends TimedRobot {
         mRobotContainer.LogRobotDataToRoboRio( mLogger );
         mRobotContainer.UpdateSmartDashboard();
         // mCanbusLogger.writePacket( mCanbusLoggerData, 0 );  // API class: 0, API index: 0
+
+        // ---------- ROBOT CHARACTERIZATION ----------
+        double elapsedTime = Timer.getFPGATimestamp() - startTime;
+        System.out.println("Robot disabled");
+        mRobotContainer.mDrivetrain.SetOpenLoopOutput(0.0, 0.0, false);
+        // data processing step
+        data = entries.toString();
+        data = data.substring(1, data.length() - 1) + ", ";
+        telemetryEntry.setString(data);
+        entries.clear();
+        System.out.println("Robot disabled");
+        System.out.println("Collected : " + counter + " in " + elapsedTime + " seconds");
+        data = "";
+        // ---------- ROBOT CHARACTERIZATION ----------
+    
     }
 
     /**
@@ -78,17 +106,23 @@ public class Robot extends TimedRobot {
     */     
     @Override
     public void autonomousInit () {
-        // mLogger.info( "<=========== AUTONOMOUS INIT ===========>" );
-        // mRobotContainer.SetMatchState( MatchState_t.autonomousInit );
-        // mAutonomousCommand = mRobotContainer.GetAutonomousCommand();
-        // if (mAutonomousCommand != null) {
-        //     mAutonomousCommand.schedule();
-        //     mLogger.info( "Starting autonomous command {}",
-        //         mAutonomousCommand.getName() );
-        // }
-        // CommandScheduler.getInstance().run();
-        // mRobotContainer.LogRobotDataToRoboRio( mLogger );
-        // mRobotContainer.UpdateSmartDashboard();         
+        mLogger.info( "<=========== AUTONOMOUS INIT ===========>" );
+        mRobotContainer.SetMatchState( MatchState_t.autonomousInit );
+        mAutonomousCommand = mRobotContainer.GetAutonomousCommand();
+        if (mAutonomousCommand != null) {
+            mAutonomousCommand.schedule();
+            mLogger.info( "Starting autonomous command {}",
+                mAutonomousCommand.getName() );
+        }
+        CommandScheduler.getInstance().run();
+        mRobotContainer.LogRobotDataToRoboRio( mLogger );
+        mRobotContainer.UpdateSmartDashboard();
+
+        // ---------- ROBOT CHARACTERIZATION ----------
+        startTime = Timer.getFPGATimestamp();
+        counter = 0;
+        // ---------- ROBOT CHARACTERIZATION ----------
+    
     }
 
     /**
@@ -150,7 +184,8 @@ public class Robot extends TimedRobot {
         // CommandScheduler.getInstance().run();
         // mRobotContainer.LogRobotDataToRoboRio( mLogger );
         // mRobotContainer.UpdateSmartDashboard();
-    
+
+        // ---------- ROBOT CHARACTERIZATION ----------
         double now = Timer.getFPGATimestamp();
         double leftPosition = mRobotContainer.mDrivetrain.GetLoggingData().mLeftEncoderPosition;
         double leftRate = mRobotContainer.mDrivetrain.GetLoggingData().mLeftEncoderVelocity;
@@ -161,14 +196,9 @@ public class Robot extends TimedRobot {
         double motorVolts = battery * Math.abs(priorAutospeed);
         double leftMotorVolts = motorVolts;
         double rightMotorVolts = motorVolts;
-    
-        // Retrieve the commanded speed from NetworkTables
         double autospeed = autoSpeedEntry.getDouble(0);
         priorAutospeed = autospeed;
-    
-        // command motors to do things
         mRobotContainer.mDrivetrain.SetOpenLoopOutput(autospeed, 0.0, false);
-    
         numberArray[0] = now;
         numberArray[1] = battery;
         numberArray[2] = autospeed;
@@ -179,16 +209,11 @@ public class Robot extends TimedRobot {
         numberArray[7] = leftRate;
         numberArray[8] = rightRate;
         numberArray[9] = gyroAngleRadians;
-    
-        // Add data to a string that is uploaded to NT
         for (double num : numberArray) {
           entries.add(num);
         }
-        //counter++;
-
-    
-    
-    
+        counter++;
+        // ---------- ROBOT CHARACTERIZATION ----------
     }
 
     /**

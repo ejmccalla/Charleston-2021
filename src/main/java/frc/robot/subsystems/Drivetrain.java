@@ -16,9 +16,13 @@ import frc.robot.lib.drivers.VictorSPX;
 import frc.robot.lib.controllers.LimelightVision;
 import frc.robot.lib.controllers.LimelightVision.SharedState;
 import com.analog.adis16470.frc.ADIS16470_IMU;
+import edu.wpi.first.wpilibj.kinematics.DifferentialDriveOdometry;
+import edu.wpi.first.wpilibj.geometry.Pose2d;
+import edu.wpi.first.wpilibj.kinematics.DifferentialDriveWheelSpeeds;
 
 /**
-* The Drivetrain class is designed to use the command-based programming model and extends the SubsystemBase class.
+* The Drivetrain class is designed to use the command-based programming model
+* and extends the SubsystemBase class.
 * @see {@link edu.wpi.first.wpilibj2.command.SubsystemBase}
 */
 public class Drivetrain extends SubsystemBase {
@@ -38,6 +42,9 @@ public class Drivetrain extends SubsystemBase {
 
     // Drive conrol (both open and closed loop)
     private DifferentialDrive mDifferentialDrive;
+
+    // Track the robots whereabouts
+    private final DifferentialDriveOdometry mOdometry;
 
     // Limelight Controller Closed-loop control
     private Notifier mLimelightVisionControllerThread;  // Threading interface only
@@ -233,6 +240,68 @@ public class Drivetrain extends SubsystemBase {
         }
     }
 
+
+
+
+
+
+
+    /**
+    * This method will set the output based on a motor voltage.
+    */
+    public void SetOpenLoopOutput( double leftVolts, double rightVolts ) {
+        mLeftMaster.setVoltage( leftVolts );
+        mRightMaster.setVoltage( -rightVolts );
+        mDifferentialDrive.feed();
+      }
+
+
+    public DifferentialDriveWheelSpeeds getWheelSpeeds() {
+
+        double leftVelocityInMetersPerSecond = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+        double rightVelocityInMetersPerSecond = mRightMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+        return new DifferentialDriveWheelSpeeds( leftVelocityInMetersPerSecond, rightVelocityInMetersPerSecond );
+    }
+
+    public Pose2d getPose() {
+       return mOdometry.getPoseMeters();
+    }
+
+    public double getHeading() {
+        return mIMU.getRotation2d().getDegrees();
+    }
+
+    public double getTurnRate() {
+        return -mIMU.getRate();
+    }
+
+    public void zeroHeading() {
+        mIMU.reset();
+    }
+
+    public double getAverageEncoderDistance() {
+        double leftPositionInMeters = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+        double rightPositionInMeters = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+        return ( leftPositionInMeters + rightPositionInMeters ) / 2.0;
+     }
+
+    public void resetOdometry( Pose2d pose ) {
+        resetEncoders();
+        mOdometry.resetPosition( pose, mIMU.getRotation2d() );
+    }
+
+    public void resetEncoders() {
+        mLeftMaster.setSelectedSensorPosition( 0.0 );
+        mRightMaster.setSelectedSensorPosition( 0.0 );
+    }
+
+
+
+
+
+
+    
+
     /**
     * This method will output data to the smart dashboard.  This data is displayed at the driver's station and is meant
     * to be aid the drive team.
@@ -361,6 +430,7 @@ public class Drivetrain extends SubsystemBase {
         mShifter = shifter;
         mIMU = imu;
         mDifferentialDrive = differentialDrive;
+        mOdometry = new DifferentialDriveOdometry( mIMU.getRotation2d() );
         mLimelightVisionController = limelightVision;
         mLimelightVisionControllerSharedState = mLimelightVisionController.GetSharedState();
         mLoggingData = new LoggingData( mLimelightVisionControllerSharedState );
@@ -413,8 +483,9 @@ public class Drivetrain extends SubsystemBase {
     }
 
     /**
-    * The subsystem periodic method gets called by the CommandScheduler at the very beginning of each robot loop.  All
-    * sensor readings should be updated in this method.
+    * The subsystem periodic method gets called by the CommandScheduler at the
+    * very beginning of each robot loop. All sensor readings should be updated
+    in this method.
     * @see {@link edu.wpi.first.wpilibj2.command.CommandScheduler#run}
     */ 
     @Override
@@ -424,11 +495,18 @@ public class Drivetrain extends SubsystemBase {
         }
         mLimelightVisionControllerSharedState = mLimelightVisionController.GetSharedState();
         mLoggingData.mLimelightVisionSharedState = mLimelightVisionControllerSharedState;
+        
+        double leftPositionInMeters = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+        double rightPositionInMeters = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;;
+
         mLoggingData.mLeftEncoderPosition = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER;
         mLoggingData.mRightEncoderPosition = mRightMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER;
         mLoggingData.mLeftEncoderVelocity = mLeftMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10; // native units per 100ms
         mLoggingData.mRightEncoderVelocity = mRightMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10; // native units per 100ms
         mLoggingData.mGyroAngle_deg = mIMU.getAngle();
+    
+        mOdometry.update( mIMU.getRotation2d(), leftPositionInMeters, rightPositionInMeters );
+
     }
 
 }

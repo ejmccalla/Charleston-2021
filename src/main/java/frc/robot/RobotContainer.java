@@ -14,7 +14,6 @@ import frc.robot.Constants.HARDWARE;
 import frc.robot.Constants.DRIVER;
 import frc.robot.Constants.PRESSURE_SENSOR;
 import frc.robot.lib.drivers.PressureSensor;
-// import frc.robot.lib.drivers.Photoeye;
 import frc.robot.subsystems.Drivetrain;
 import frc.robot.commands.TeleopDrive;
 import frc.robot.commands.TurnToTarget;
@@ -57,7 +56,6 @@ public class RobotContainer {
     private final JoystickButton mDriverButtonBoard_2;
     private final JoystickButton mDriverButtonBoard_3;
     private final PressureSensor mPressureSensor;
-    // private final Photoeye mPhotoeye;
     private final PowerDistributionPanel mPDP;
     
     // Subsystems
@@ -71,7 +69,6 @@ public class RobotContainer {
     private MatchState_t mMatchState;
 
     // Logging
-    // private final String mLoggingHeader = "Time,Match State,Pressure (PSI),Photoeye Closed,PDP Voltage,PDP Slot 0 Current";
     private final String mLoggingHeader = "Time,Match State,Pressure (PSI),PDP Voltage,PDP Slot 0 Current";
                                 
     /**
@@ -108,8 +105,6 @@ public class RobotContainer {
     public void UpdateSmartDashboard() {
         SmartDashboard.putNumber( "Pressure Sensor (PSI)", 
             mPressureSensor.GetPressureInPSI() );
-        // SmartDashboard.putBoolean( "Photoeye", 
-        //     mPhotoeye.IsPhotoeyeClosed() );
         mDrivetrain.OutputSmartDashboard();
     }
 
@@ -132,7 +127,6 @@ public class RobotContainer {
                           Timer.getFPGATimestamp(),
                           mMatchState.toString(),
                           mPressureSensor.GetPressureInPSI(),
-                        //   mPhotoeye.IsPhotoeyeClosed(),
                           mPDP.getVoltage(),
                           mPDP.getCurrent( DRIVETRAIN.LEFT_MASTER_ID )
                           );
@@ -192,8 +186,8 @@ public class RobotContainer {
         Joystick driverJoystickThrottle, JoystickButton driverJoystickThrottleButton,
         Joystick driverJoystickTurn, JoystickButton driverJoystickTurnButton,
         JoystickButton driverButtonBoard_2, JoystickButton driverButtonBoard_3,
-        PressureSensor pressureSensor, //Photoeye photoeye,
-        PowerDistributionPanel powerDistributionPanel ) {
+        PressureSensor pressureSensor, PowerDistributionPanel powerDistributionPanel ) {
+
         mDriverJoystickThrottle = driverJoystickThrottle;
         mDriverJoystickThrottleButton = driverJoystickThrottleButton;
         mDriverJoystickTurn = driverJoystickTurn;
@@ -230,14 +224,12 @@ public class RobotContainer {
             PRESSURE_SENSOR.ANALOG_CHANNEL,
             PRESSURE_SENSOR.VOLTS_AT_ZERO_PRESSURE,
             PRESSURE_SENSOR.PSI_PER_VOLT );
-        // Photoeye photoeye = new Photoeye( HARDWARE.PHOTOEYE_DIGITAL_CHANNEL );
         PowerDistributionPanel powerDistributionPanel = new PowerDistributionPanel( 
             HARDWARE.PDP_ID );
 
         return new RobotContainer( 
             driverJoystickThrottle, driverJoystickThrottleButton, driverJoystickTurn,
             driverJoystickTurnButton, driverButtonBoard_2, driverButtonBoard_3,
-            //pressureSensor, photoeye, powerDistributionPanel );
             pressureSensor, powerDistributionPanel );
     }
 

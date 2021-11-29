@@ -11,12 +11,14 @@ import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.StatusFrameEnhanced;
 
 /**
-* This class provides methods to configure Talon SRX motor controllers as both masters and followers.  Also, any
-* sticky errors present will be logged and cleared.
+* This class provides methods to configure Talon SRX motor controllers as both
+* masters and followers.  Also, any sticky errors present will be logged and
+* cleared.
 *
 * @see {@link https://phoenix-documentation.readthedocs.io/en/latest/ch13_MC.html}
 */
 public class TalonSRX {
+
     /**
     * This method is intended to initialize the motor controller to default configuration common to all modes or
     * operation.
@@ -67,14 +69,14 @@ public class TalonSRX {
         if ( configSelectedFeedbackSensor != ErrorCode.OK ) {
             //mLogger.error( "Could not detect encoder due EC: [{}]", configSelectedFeedbackSensor );
         }
-        // final ErrorCode configVelocityMeasurementPeriod = talon.configVelocityMeasurementPeriod( VelocityMeasPeriod.Period_50Ms, HARDWARE.CTRE_CAN_LONG_TIMEOUT_MS );
-        // if ( configVelocityMeasurementPeriod != ErrorCode.OK ) {
-        //     //mLogger.error( "Could not set TalonSRX [{}] voltage compensation due to EC: [{}]", talon.getDeviceID(), configVelocityMeasurementPeriod );
-        // }
-        // final ErrorCode configVelocityMeasurementWindow = talon.configVelocityMeasurementWindow( 1, HARDWARE.CTRE_CAN_LONG_TIMEOUT_MS );
-        // if ( configVelocityMeasurementWindow != ErrorCode.OK ) {
-        //     //mLogger.error( "Could not set TalonSRX [{}] velocity measurement window due to EC: [{}]", talon.getDeviceID(), configVelocityMeasurementWindow );
-        // }
+        final ErrorCode configVelocityMeasurementPeriod = talon.configVelocityMeasurementPeriod( VelocityMeasPeriod.Period_50Ms, HARDWARE.CTRE_CAN_LONG_TIMEOUT_MS );
+        if ( configVelocityMeasurementPeriod != ErrorCode.OK ) {
+            //mLogger.error( "Could not set TalonSRX [{}] voltage compensation due to EC: [{}]", talon.getDeviceID(), configVelocityMeasurementPeriod );
+        }
+        final ErrorCode configVelocityMeasurementWindow = talon.configVelocityMeasurementWindow( 1, HARDWARE.CTRE_CAN_LONG_TIMEOUT_MS );
+        if ( configVelocityMeasurementWindow != ErrorCode.OK ) {
+            //mLogger.error( "Could not set TalonSRX [{}] velocity measurement window due to EC: [{}]", talon.getDeviceID(), configVelocityMeasurementWindow );
+        }
         final ErrorCode configClosedloopRamp = talon.configClosedloopRamp( 0.0, HARDWARE.CTRE_CAN_LONG_TIMEOUT_MS );
         if ( configClosedloopRamp != ErrorCode.OK ) {
             //mLogger.error( "Could not set TalonSRX [{}] closed loop ramp due to EC: [{}]", talon.getDeviceID(), configClosedloopRamp );
