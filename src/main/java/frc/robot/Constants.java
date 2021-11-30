@@ -59,14 +59,14 @@ public final class Constants {
         public static final int RIGHT_MASTER_ID = 0;                            // Motor controller CAN ID AND PDP Port number
         public static final int RIGHT_FOLLOWER_1_ID = 1;                        // Motor controller CAN ID AND PDP Port number
         public static final int RIGHT_FOLLOWER_2_ID = 2;                        // Motor controller CAN ID AND PDP Port number
-        public static final double ENCODER_GEARING = 24.0 / 60.0;               // Gearing between encoder and output shaft
+        public static final double ENCODER_GEARING = (60.0/24.0)*(36.0/12.0);   // Gearing between encoder and output shaft (output/input)
         public static final double ENCODER_PPR = 4096.0;                        // Encoder pulses per revolution
         
-        public static final double WHEEL_DIAMETER_METERS = 0.1571625;           // Wheel diamter 6-3/16"
-        public static final double kS = 0.0;
-        public static final double kV = 0.0;
-        public static final double kA = 0.0;
-        public static final double kTRACK_WIDTH = 0.0;
+        public static final double WHEEL_DIAMETER_METERS = 0.157;               // Wheel diamter 6-3/16"
+        public static final double kS = 1.45;
+        public static final double kV = 1.82;
+        public static final double kA = 0.517;
+        public static final double kTRACK_WIDTH_METERS = 0.647;
 
         public static final int LOW_GEAR_SOLENOID_ID = 0;                       // PCM port number for low gear shifting
         public static final int HIGH_GEAR_SOLENOID_ID = 1;                      // PCM port number for high gear shifting

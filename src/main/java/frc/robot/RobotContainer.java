@@ -20,13 +20,58 @@ import frc.robot.commands.TurnToTarget;
 import frc.robot.commands.DriveToTarget;
 import frc.robot.commands.Auto1;
 import frc.robot.commands.Auto2;
+import frc.robot.commands.RamseteTest;
 import org.apache.logging.log4j.Logger;
+
+import edu.wpi.first.wpilibj.geometry.Pose2d;
+import edu.wpi.first.wpilibj.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.geometry.Translation2d;
+import edu.wpi.first.wpilibj.trajectory.Trajectory;
+import edu.wpi.first.wpilibj.trajectory.TrajectoryConfig;
+import edu.wpi.first.wpilibj.trajectory.TrajectoryGenerator;
+import edu.wpi.first.wpilibj.kinematics.DifferentialDriveKinematics;
+import edu.wpi.first.wpilibj.trajectory.constraint.DifferentialDriveVoltageConstraint;
+import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward;
+import edu.wpi.first.wpilibj.controller.RamseteController;
+import edu.wpi.first.wpilibj.controller.PIDController;
+import java.util.List;
 
 /**
 * The RobotContainer class contains the subsystems, button/joystick bindings
 * and logging.
 */
 public class RobotContainer {
+
+    private static final DifferentialDriveKinematics kDriveKinematics =
+        new DifferentialDriveKinematics(DRIVETRAIN.kTRACK_WIDTH_METERS);
+    private double kMaxSpeedMetersPerSecond = 3.0;
+    private double kMaxAccelerationMetersPerSecondSquared = 3.0;
+
+    // An example trajectory to follow.  All units in meters.
+    public Trajectory exampleTrajectory = TrajectoryGenerator.generateTrajectory(
+        // Start at the origin facing the +X direction
+        new Pose2d(0, 0, new Rotation2d(0)),
+        // Pass through these two interior waypoints, making an 's' curve path
+        List.of(
+            new Translation2d(1, 1),
+            new Translation2d(2, -1)
+            // new Translation2d(1, 0),
+            // new Translation2d(2, 0)
+        ),
+        // End 3 meters straight ahead of where we started, facing forward
+        new Pose2d(3, 0, new Rotation2d(0)),
+        // Pass config
+        new TrajectoryConfig(kMaxSpeedMetersPerSecond,
+                            kMaxAccelerationMetersPerSecondSquared)
+            // Add kinematics to ensure max speed is actually obeyed
+            .setKinematics(kDriveKinematics)
+            // Apply the voltage constraint
+            .addConstraint(new DifferentialDriveVoltageConstraint(
+                new SimpleMotorFeedforward(DRIVETRAIN.kS,
+                    DRIVETRAIN.kV,
+                    DRIVETRAIN.kA),
+                kDriveKinematics,
+                10)));
 
     // State enumerations
     public static enum MatchState_t {
@@ -96,7 +141,26 @@ public class RobotContainer {
     * @return Command The autonomous command to run
     */     
     public Command GetAutonomousCommand () {
-        return mAutoChooser.getSelected();
+        
+        return new RamseteTest(
+            exampleTrajectory,
+            mDrivetrain::getPose,
+            new RamseteController( 2.0, 0.7 ),
+            new SimpleMotorFeedforward(DRIVETRAIN.kS,
+                DRIVETRAIN.kV,
+                DRIVETRAIN.kA),
+            kDriveKinematics,
+            mDrivetrain::getWheelSpeeds,
+            // new PIDController(10.0, 0, 0),
+            // new PIDController(10.0, 0, 0),
+            new PIDController(0, 0, 0),
+            new PIDController(0, 0, 0),            
+            // RamseteCommand passes volts to the callback
+            mDrivetrain::SetOpenLoopOutput,
+            mDrivetrain
+            );
+        
+        //return mAutoChooser.getSelected();
     }
 
     /**

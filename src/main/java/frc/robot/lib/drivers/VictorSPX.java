@@ -46,7 +46,8 @@ public class VictorSPX {
         if ( configVoltageCompSaturation != ErrorCode.OK ) {
             //mLogger.error( "Could not set VictorSPX [{}] voltage compensation due to EC: [{}]", victor.getDeviceID(), configVoltageCompSaturation );
         }  
-        victor.enableVoltageCompensation( true );
+        //victor.enableVoltageCompensation( true );
+        victor.enableVoltageCompensation( false );
     }
 
     /**

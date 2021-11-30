@@ -11,12 +11,13 @@ import org.apache.logging.log4j.Logger;
 // import java.time.LocalDateTime;
 
 // ---------- ROBOT CHARACTERIZATION ----------
-import edu.wpi.first.wpilibj.RobotController;
-import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.networktables.NetworkTableEntry;
-import edu.wpi.first.networktables.NetworkTableInstance;
-import java.util.ArrayList;
-import edu.wpi.first.wpilibj.livewindow.LiveWindow;
+// import edu.wpi.first.wpilibj.RobotController;
+// import edu.wpi.first.wpilibj.Timer;
+// import edu.wpi.first.networktables.NetworkTableEntry;
+// import edu.wpi.first.networktables.NetworkTableInstance;
+// import java.util.ArrayList;
+// import edu.wpi.first.wpilibj.livewindow.LiveWindow;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 // ---------- ROBOT CHARACTERIZATION ----------
 
 /**
@@ -26,7 +27,7 @@ import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 * while the robot is in the various states.
 */
 public class Robot extends TimedRobot {
-    
+
     private static final Logger mLogger = LogManager.getLogger( Robot.class );
     
     private RobotContainer mRobotContainer;
@@ -36,19 +37,25 @@ public class Robot extends TimedRobot {
     // private byte[] mCanbusLoggerData = {0, 0, 0, 0, 0, 0, 0, 0};
 
     // ---------- ROBOT CHARACTERIZATION ----------
-    String data = "";
-    int counter = 0;
-    double startTime = 0;
-    double priorAutospeed = 0;
-    double[] numberArray = new double[10];
-    ArrayList<Double> entries = new ArrayList<Double>();
-    NetworkTableEntry autoSpeedEntry = NetworkTableInstance.getDefault().getEntry("/robot/autospeed");
-    NetworkTableEntry telemetryEntry = NetworkTableInstance.getDefault().getEntry("/robot/telemetry");
-    NetworkTableEntry rotateEntry = NetworkTableInstance.getDefault().getEntry("/robot/rotate");
-    public Robot() {
-        super(.005);
-        LiveWindow.disableAllTelemetry();
-      }    
+    // private boolean m_runCal = false;
+    // private boolean m_configCal = false;
+    // private boolean m_reset = false;    
+    // String data = "";
+    // int counter = 0;
+    // double startTime = 0;
+    // double priorAutospeed = 0;
+    // double[] numberArray = new double[10];
+    // ArrayList<Double> entries = new ArrayList<Double>();
+    // NetworkTableEntry autoSpeedEntry = NetworkTableInstance.getDefault().getEntry("/robot/autospeed");
+    // NetworkTableEntry telemetryEntry = NetworkTableInstance.getDefault().getEntry("/robot/telemetry");
+    // NetworkTableEntry rotateEntry = NetworkTableInstance.getDefault().getEntry("/robot/rotate");
+    // public Robot() {
+    //     super(.010);
+    //     LiveWindow.disableAllTelemetry();
+    //     SmartDashboard.putBoolean("IMU Config Cal", false);
+    //     SmartDashboard.putBoolean("IMU Reset", false);
+    //     SmartDashboard.putBoolean("IMU Run Cal", false);
+    // }
     // ---------- ROBOT CHARACTERIZATION ----------
 
 
@@ -65,9 +72,15 @@ public class Robot extends TimedRobot {
         mRobotContainer.LogRobotDataToRoboRio( mLogger );
         mRobotContainer.UpdateSmartDashboard();
 
+        SmartDashboard.putNumber( "Odometry X", 0.0 );
+        SmartDashboard.putNumber( "Odometry Y", 0.0 );
+        SmartDashboard.putNumber( "Odometry Theta", 0.0 );
+        SmartDashboard.putNumber( "Trajectory X", 0.0 );
+        SmartDashboard.putNumber( "Trajectory Y", 0.0 );
+        SmartDashboard.putNumber( "Trajectory Theta", 0.0 );
 
         // ---------- ROBOT CHARACTERIZATION ----------
-        NetworkTableInstance.getDefault().setUpdateRate(0.010);
+        // NetworkTableInstance.getDefault().setUpdateRate(0.010);
         // ---------- ROBOT CHARACTERIZATION ----------
 
     }
@@ -85,17 +98,17 @@ public class Robot extends TimedRobot {
         // mCanbusLogger.writePacket( mCanbusLoggerData, 0 );  // API class: 0, API index: 0
 
         // ---------- ROBOT CHARACTERIZATION ----------
-        double elapsedTime = Timer.getFPGATimestamp() - startTime;
-        System.out.println("Robot disabled");
-        mRobotContainer.mDrivetrain.SetOpenLoopOutput(0.0, 0.0, false);
-        // data processing step
-        data = entries.toString();
-        data = data.substring(1, data.length() - 1) + ", ";
-        telemetryEntry.setString(data);
-        entries.clear();
-        System.out.println("Robot disabled");
-        System.out.println("Collected : " + counter + " in " + elapsedTime + " seconds");
-        data = "";
+        // double elapsedTime = Timer.getFPGATimestamp() - startTime;
+        // System.out.println("Robot disabled");
+        // mRobotContainer.mDrivetrain.SetOpenLoopOutput(0.0, 0.0, false);
+        // // data processing step
+        // data = entries.toString();
+        // data = data.substring(1, data.length() - 1) + ", ";
+        // telemetryEntry.setString(data);
+        // entries.clear();
+        // System.out.println("Robot disabled");
+        // System.out.println("Collected : " + counter + " in " + elapsedTime + " seconds");
+        // data = "";
         // ---------- ROBOT CHARACTERIZATION ----------
     
     }
@@ -108,19 +121,27 @@ public class Robot extends TimedRobot {
     public void autonomousInit () {
         mLogger.info( "<=========== AUTONOMOUS INIT ===========>" );
         mRobotContainer.SetMatchState( MatchState_t.autonomousInit );
+        mRobotContainer.mDrivetrain.CalibrateIMU();
         mAutonomousCommand = mRobotContainer.GetAutonomousCommand();
         if (mAutonomousCommand != null) {
             mAutonomousCommand.schedule();
             mLogger.info( "Starting autonomous command {}",
                 mAutonomousCommand.getName() );
-        }
+        
+            // TODO: Reset odometry to the starting pose of the trajectory.
+            // // Run path following command, then stop at the end.
+            // return ramseteCommand.andThen(() -> mDrivetrain.SetOpenLoopOutput(0, 0)); 
+            mRobotContainer.mDrivetrain.resetOdometry( mRobotContainer.exampleTrajectory.getInitialPose() );
+            }
+
+
         CommandScheduler.getInstance().run();
         mRobotContainer.LogRobotDataToRoboRio( mLogger );
         mRobotContainer.UpdateSmartDashboard();
 
         // ---------- ROBOT CHARACTERIZATION ----------
-        startTime = Timer.getFPGATimestamp();
-        counter = 0;
+        // startTime = Timer.getFPGATimestamp();
+        // counter = 0;
         // ---------- ROBOT CHARACTERIZATION ----------
     
     }
@@ -131,7 +152,7 @@ public class Robot extends TimedRobot {
     */     
     @Override
     public void teleopInit () {
-        mLogger.error( "<=========== TELEOP INIT ===========>" );
+        mLogger.info( "<=========== TELEOP INIT ===========>" );
         mRobotContainer.SetMatchState( MatchState_t.teleopInit );
         if (mAutonomousCommand != null) {
             mAutonomousCommand.cancel();
@@ -168,8 +189,27 @@ public class Robot extends TimedRobot {
             mLogger.info("<=========== DISABLED PERIODIC ===========>");
             mRobotContainer.SetMatchState( MatchState_t.disabledPeriodic );
             mRobotContainer.LogRobotDataToRoboRio( mLogger );
-            mRobotContainer.UpdateSmartDashboard();
         }
+        mRobotContainer.UpdateSmartDashboard();
+
+        // ---------- ROBOT CHARACTERIZATION ----------
+        // m_configCal = SmartDashboard.getBoolean("IMU Config Cal", false);
+        // m_reset = SmartDashboard.getBoolean("IMU Reset", false);
+        // m_runCal = SmartDashboard.getBoolean("IMU Run Cal", false);
+        // if (m_configCal) {
+        //     mRobotContainer.mDrivetrain.ConfigureIMU();
+        //     m_configCal = SmartDashboard.putBoolean("IMU Config Cal", false);
+        // }
+        // if (m_reset) {
+        //     mRobotContainer.mDrivetrain.ResetIMU();
+        //     m_reset = SmartDashboard.putBoolean("IMU Reset", false);
+        // }
+        // if (m_runCal) {
+        //     mRobotContainer.mDrivetrain.CalibrateIMU();
+        //     m_runCal = SmartDashboard.putBoolean("IMU Run Cal", false);
+        // }
+        // ---------- ROBOT CHARACTERIZATION ----------
+
     }
 
     /**
@@ -177,42 +217,44 @@ public class Robot extends TimedRobot {
     */     
     @Override
     public void autonomousPeriodic () {
-        // if ( mRobotContainer.GetMatchState() != MatchState_t.autonomousPeriodic ) {
-        //     mLogger.info("<=========== AUTONOMOUS PERIODIC ===========>");
-        //     mRobotContainer.SetMatchState( MatchState_t.autonomousPeriodic );
-        // }
-        // CommandScheduler.getInstance().run();
-        // mRobotContainer.LogRobotDataToRoboRio( mLogger );
-        // mRobotContainer.UpdateSmartDashboard();
+        if ( mRobotContainer.GetMatchState() != MatchState_t.autonomousPeriodic ) {
+            mLogger.info("<=========== AUTONOMOUS PERIODIC ===========>");
+            mRobotContainer.SetMatchState( MatchState_t.autonomousPeriodic );
+        }
+        CommandScheduler.getInstance().run();
+        mRobotContainer.LogRobotDataToRoboRio( mLogger );
+        mRobotContainer.UpdateSmartDashboard();
 
         // ---------- ROBOT CHARACTERIZATION ----------
-        double now = Timer.getFPGATimestamp();
-        double leftPosition = mRobotContainer.mDrivetrain.GetLoggingData().mLeftEncoderPosition;
-        double leftRate = mRobotContainer.mDrivetrain.GetLoggingData().mLeftEncoderVelocity;
-        double rightPosition = mRobotContainer.mDrivetrain.GetLoggingData().mRightEncoderPosition;
-        double rightRate = mRobotContainer.mDrivetrain.GetLoggingData().mRightEncoderVelocity;
-        double gyroAngleRadians = Math.toRadians(mRobotContainer.mDrivetrain.GetLoggingData().mGyroAngle_deg);
-        double battery = RobotController.getBatteryVoltage();
-        double motorVolts = battery * Math.abs(priorAutospeed);
-        double leftMotorVolts = motorVolts;
-        double rightMotorVolts = motorVolts;
-        double autospeed = autoSpeedEntry.getDouble(0);
-        priorAutospeed = autospeed;
-        mRobotContainer.mDrivetrain.SetOpenLoopOutput(autospeed, 0.0, false);
-        numberArray[0] = now;
-        numberArray[1] = battery;
-        numberArray[2] = autospeed;
-        numberArray[3] = leftMotorVolts;
-        numberArray[4] = rightMotorVolts;
-        numberArray[5] = leftPosition;
-        numberArray[6] = rightPosition;
-        numberArray[7] = leftRate;
-        numberArray[8] = rightRate;
-        numberArray[9] = gyroAngleRadians;
-        for (double num : numberArray) {
-          entries.add(num);
-        }
-        counter++;
+        // double now = Timer.getFPGATimestamp();
+        // double leftPosition = mRobotContainer.mDrivetrain.GetLeftPositionRotations();
+        // double leftRate = mRobotContainer.mDrivetrain.GetLeftVelocityRotationsPerSecond();
+        // double rightPosition = mRobotContainer.mDrivetrain.GetRightPositionRotations();
+        // double rightRate = mRobotContainer.mDrivetrain.GetRightVelocityRotationsPerSecond();
+        // double gyroAngleRadians = mRobotContainer.mDrivetrain.GetGyroAngleInRadians();
+        // double battery = RobotController.getBatteryVoltage();
+        // double motorVolts = battery * Math.abs(priorAutospeed);
+        // double leftMotorVolts = motorVolts;
+        // double rightMotorVolts = motorVolts;
+        // double autospeed = autoSpeedEntry.getDouble(0);
+        // priorAutospeed = autospeed;
+        // mRobotContainer.mDrivetrain.mDifferentialDrive.tankDrive(
+        //     (rotateEntry.getBoolean(false) ? -1 : 1) * autospeed, autospeed,
+        //     false);
+        // numberArray[0] = now;
+        // numberArray[1] = battery;
+        // numberArray[2] = autospeed;
+        // numberArray[3] = leftMotorVolts;
+        // numberArray[4] = rightMotorVolts;
+        // numberArray[5] = leftPosition;
+        // numberArray[6] = rightPosition;
+        // numberArray[7] = leftRate;
+        // numberArray[8] = rightRate;
+        // numberArray[9] = gyroAngleRadians;
+        // for (double num : numberArray) {
+        //   entries.add(num);
+        // }
+        // counter++;
         // ---------- ROBOT CHARACTERIZATION ----------
     }
 

@@ -50,7 +50,8 @@ public class TalonSRX {
         if ( configVoltageCompSaturation != ErrorCode.OK ) {
             //mLogger.error( "Could not set TalonSRX [{}] voltage compensation due to EC: [{}]", talon.getDeviceID(), configVoltageCompSaturation );
                 }  
-        talon.enableVoltageCompensation( true );
+        //talon.enableVoltageCompensation( true );
+        talon.enableVoltageCompensation( false );
     }
 
     /**

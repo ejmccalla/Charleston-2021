@@ -41,7 +41,7 @@ public class Drivetrain extends SubsystemBase {
     private final ADIS16470_IMU mIMU;
 
     // Drive conrol (both open and closed loop)
-    private DifferentialDrive mDifferentialDrive;
+    public DifferentialDrive mDifferentialDrive;
 
     // Track the robots whereabouts
     private final DifferentialDriveOdometry mOdometry;
@@ -63,18 +63,18 @@ public class Drivetrain extends SubsystemBase {
                                          "Total (deg),Distance Estimator,Target Distance (ft),Error Distance (ft)";
     public class LoggingData {
         public SharedState mLimelightVisionSharedState;
-        public double mLeftEncoderPosition;
-        public double mRightEncoderPosition;
-        public double mLeftEncoderVelocity;
-        public double mRightEncoderVelocity;
-        public double mGyroAngle_deg;
+        public double mLeftEncoderPositionInRotations;
+        public double mRightEncoderPositionInRotations;
+        public double mLeftEncoderVelocityInRotationsPerSecond;
+        public double mRightEncoderVelocityInRotationsPerSecond;
+        public double mGyroAngleInRadians;
         public LoggingData ( SharedState limelightVisionSharedState ) {
             mLimelightVisionSharedState = limelightVisionSharedState;
-            mLeftEncoderPosition = 0.0;
-            mRightEncoderPosition = 0.0;
-            mLeftEncoderVelocity = 0.0;
-            mRightEncoderVelocity = 0.0;
-            mGyroAngle_deg = 0.0;
+            mLeftEncoderPositionInRotations = 0.0;
+            mRightEncoderPositionInRotations = 0.0;
+            mLeftEncoderVelocityInRotationsPerSecond = 0.0;
+            mRightEncoderVelocityInRotationsPerSecond = 0.0;
+            mGyroAngleInRadians = 0.0;
         }
     }
     LoggingData mLoggingData;
@@ -255,12 +255,37 @@ public class Drivetrain extends SubsystemBase {
         mDifferentialDrive.feed();
       }
 
+    public double GetLeftPositionRotations() {
+        return mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER;
+    }
+    public double GetRightPositionRotations() {
+        return mRightMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER;
+    }
+    public double GetLeftVelocityRotationsPerSecond() {
+        return mLeftMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10; // native units per 100ms
+    }
+    public double GetRightVelocityRotationsPerSecond() {
+        return mRightMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10; // native units per 100ms
+    }
+    public double GetLeftPositionMeters() {
+        return mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+    }
+    public double GetRightPositionMeters() {
+        return -mRightMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+    }
+    public double GetLeftVelocityMetersPerSecond() {
+        return mLeftMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10 * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI; // native units per 100ms
+    }
+    public double GetRightVelocityMetersPerSecond() {
+        return -mRightMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10 * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI; // native units per 100ms
+    }
+    public double GetGyroAngleInRadians() {
+        return Math.toRadians( mIMU.getAngle() );
+    }
+
 
     public DifferentialDriveWheelSpeeds getWheelSpeeds() {
-
-        double leftVelocityInMetersPerSecond = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
-        double rightVelocityInMetersPerSecond = mRightMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
-        return new DifferentialDriveWheelSpeeds( leftVelocityInMetersPerSecond, rightVelocityInMetersPerSecond );
+        return new DifferentialDriveWheelSpeeds( GetLeftVelocityMetersPerSecond(), GetRightVelocityMetersPerSecond() );
     }
 
     public Pose2d getPose() {
@@ -295,11 +320,17 @@ public class Drivetrain extends SubsystemBase {
         mRightMaster.setSelectedSensorPosition( 0.0 );
     }
 
+    public void ConfigureIMU() {
+        mIMU.configCalTime(ADIS16470_IMU.ADIS16470CalibrationTime._8s);
+    }
 
+    public void ResetIMU() {
+        mIMU.reset();
+    }
 
-
-
-
+    public void CalibrateIMU() {
+        mIMU.calibrate();
+    }
     
 
     /**
@@ -332,8 +363,15 @@ public class Drivetrain extends SubsystemBase {
         SmartDashboard.putString( "Running Command", mLimelightVisionControllerSharedState.currentCommand.toString() );
         SmartDashboard.putString( "Vision State", mLimelightVisionControllerSharedState.visionState.toString() );
         SmartDashboard.putString( "Failing State", mLimelightVisionControllerSharedState.failState.toString() );
-        SmartDashboard.putNumber( "Gyro Angle", mIMU.getAngle() );
+        SmartDashboard.putNumber( "Gyro Heading", getHeading() );
+        SmartDashboard.putNumber( "Left Encoder Distance", GetLeftPositionMeters() );
+        SmartDashboard.putNumber( "Right Encoder Distance", GetRightPositionMeters() );
+        SmartDashboard.putNumber( "Left Encoder Velocity", GetLeftVelocityMetersPerSecond() );
+        SmartDashboard.putNumber( "Right Encoder Velocity", GetRightVelocityMetersPerSecond() );
     }
+
+
+
 
     /**
     * This method will return all of the logging data.
@@ -495,18 +533,8 @@ public class Drivetrain extends SubsystemBase {
         }
         mLimelightVisionControllerSharedState = mLimelightVisionController.GetSharedState();
         mLoggingData.mLimelightVisionSharedState = mLimelightVisionControllerSharedState;
-        
-        double leftPositionInMeters = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
-        double rightPositionInMeters = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;;
-
-        mLoggingData.mLeftEncoderPosition = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER;
-        mLoggingData.mRightEncoderPosition = mRightMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER;
-        mLoggingData.mLeftEncoderVelocity = mLeftMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10; // native units per 100ms
-        mLoggingData.mRightEncoderVelocity = mRightMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10; // native units per 100ms
-        mLoggingData.mGyroAngle_deg = mIMU.getAngle();
-    
-        mOdometry.update( mIMU.getRotation2d(), leftPositionInMeters, rightPositionInMeters );
-
+        // The odometry class requires the gyro angle to be counter-clockwise increasing
+        mOdometry.update( mIMU.getRotation2d(), GetLeftPositionMeters(), GetRightPositionMeters() );
     }
 
 }
