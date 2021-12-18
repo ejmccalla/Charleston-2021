@@ -1,24 +1,17 @@
 package frc.robot;
 
+// import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import frc.robot.RobotContainer.MatchState_t;
+// import org.apache.logging.log4j.LogManager;
+// import org.apache.logging.log4j.Logger;
 // import edu.wpi.first.wpilibj.DriverStation;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 // import edu.wpi.first.wpilibj.CAN;
 // import java.time.LocalDateTime;
 
-// ---------- ROBOT CHARACTERIZATION ----------
-// import edu.wpi.first.wpilibj.RobotController;
-// import edu.wpi.first.wpilibj.Timer;
-// import edu.wpi.first.networktables.NetworkTableEntry;
-// import edu.wpi.first.networktables.NetworkTableInstance;
-// import java.util.ArrayList;
-// import edu.wpi.first.wpilibj.livewindow.LiveWindow;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-// ---------- ROBOT CHARACTERIZATION ----------
 
 /**
 * The Robot class contains the RobotContainer and data logger objects and
@@ -28,36 +21,12 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 */
 public class Robot extends TimedRobot {
 
-    private static final Logger mLogger = LogManager.getLogger( Robot.class );
-    
-    private RobotContainer mRobotContainer;
+    // private static final Logger mLogger = LogManager.getLogger( Robot.class );
+    private static final RobotContainer mRobotContainer = RobotContainer.Create();
     private Command mAutonomousCommand;
     // private CAN mCanbusLogger = new CAN(0);  // DeviceID = 0
     // private LocalDateTime mLocalDateTime;
     // private byte[] mCanbusLoggerData = {0, 0, 0, 0, 0, 0, 0, 0};
-
-    // ---------- ROBOT CHARACTERIZATION ----------
-    // private boolean m_runCal = false;
-    // private boolean m_configCal = false;
-    // private boolean m_reset = false;    
-    // String data = "";
-    // int counter = 0;
-    // double startTime = 0;
-    // double priorAutospeed = 0;
-    // double[] numberArray = new double[10];
-    // ArrayList<Double> entries = new ArrayList<Double>();
-    // NetworkTableEntry autoSpeedEntry = NetworkTableInstance.getDefault().getEntry("/robot/autospeed");
-    // NetworkTableEntry telemetryEntry = NetworkTableInstance.getDefault().getEntry("/robot/telemetry");
-    // NetworkTableEntry rotateEntry = NetworkTableInstance.getDefault().getEntry("/robot/rotate");
-    // public Robot() {
-    //     super(.010);
-    //     LiveWindow.disableAllTelemetry();
-    //     SmartDashboard.putBoolean("IMU Config Cal", false);
-    //     SmartDashboard.putBoolean("IMU Reset", false);
-    //     SmartDashboard.putBoolean("IMU Run Cal", false);
-    // }
-    // ---------- ROBOT CHARACTERIZATION ----------
-
 
     /**
     * This method is called when the robot is first powered up. This method
@@ -65,24 +34,11 @@ public class Robot extends TimedRobot {
     */ 
     @Override
     public void robotInit () {
-        mLogger.info("<=========== ROBOT INIT ===========>");
-        mRobotContainer = RobotContainer.Create();
+        //mLogger.info("<=========== ROBOT INIT ===========>");
         mRobotContainer.SetMatchState( MatchState_t.robotInit );
-        mRobotContainer.LogRobotDataHeader( mLogger );
-        mRobotContainer.LogRobotDataToRoboRio( mLogger );
+        //mRobotContainer.LogRobotDataHeader( mLogger );
         mRobotContainer.UpdateSmartDashboard();
-
-        SmartDashboard.putNumber( "Odometry X", 0.0 );
-        SmartDashboard.putNumber( "Odometry Y", 0.0 );
-        SmartDashboard.putNumber( "Odometry Theta", 0.0 );
-        SmartDashboard.putNumber( "Trajectory X", 0.0 );
-        SmartDashboard.putNumber( "Trajectory Y", 0.0 );
-        SmartDashboard.putNumber( "Trajectory Theta", 0.0 );
-
-        // ---------- ROBOT CHARACTERIZATION ----------
-        // NetworkTableInstance.getDefault().setUpdateRate(0.010);
-        // ---------- ROBOT CHARACTERIZATION ----------
-
+        LiveWindow.disableAllTelemetry();   // Force users to enable the telemetry that matters
     }
 
     /**
@@ -91,26 +47,9 @@ public class Robot extends TimedRobot {
     */     
     @Override
     public void disabledInit () {
-        mLogger.info( "<=========== DISABLED INIT ===========>" );
+        //mLogger.info( "<=========== DISABLED INIT ===========>" );
         mRobotContainer.SetMatchState( MatchState_t.disabledInit );
-        mRobotContainer.LogRobotDataToRoboRio( mLogger );
-        mRobotContainer.UpdateSmartDashboard();
         // mCanbusLogger.writePacket( mCanbusLoggerData, 0 );  // API class: 0, API index: 0
-
-        // ---------- ROBOT CHARACTERIZATION ----------
-        // double elapsedTime = Timer.getFPGATimestamp() - startTime;
-        // System.out.println("Robot disabled");
-        // mRobotContainer.mDrivetrain.SetOpenLoopOutput(0.0, 0.0, false);
-        // // data processing step
-        // data = entries.toString();
-        // data = data.substring(1, data.length() - 1) + ", ";
-        // telemetryEntry.setString(data);
-        // entries.clear();
-        // System.out.println("Robot disabled");
-        // System.out.println("Collected : " + counter + " in " + elapsedTime + " seconds");
-        // data = "";
-        // ---------- ROBOT CHARACTERIZATION ----------
-    
     }
 
     /**
@@ -119,32 +58,28 @@ public class Robot extends TimedRobot {
     */     
     @Override
     public void autonomousInit () {
-        mLogger.info( "<=========== AUTONOMOUS INIT ===========>" );
+        //mLogger.info( "<=========== AUTONOMOUS INIT ===========>" );
         mRobotContainer.SetMatchState( MatchState_t.autonomousInit );
         mRobotContainer.mDrivetrain.CalibrateIMU();
         mAutonomousCommand = mRobotContainer.GetAutonomousCommand();
         if (mAutonomousCommand != null) {
             mAutonomousCommand.schedule();
-            mLogger.info( "Starting autonomous command {}",
-                mAutonomousCommand.getName() );
-        
-            // TODO: Reset odometry to the starting pose of the trajectory.
-            // // Run path following command, then stop at the end.
-            // return ramseteCommand.andThen(() -> mDrivetrain.SetOpenLoopOutput(0, 0)); 
-            mRobotContainer.mDrivetrain.resetOdometry( mRobotContainer.exampleTrajectory.getInitialPose() );
+            // mLogger.info( "Starting autonomous command {}", mAutonomousCommand.getName() );
             }
-
-
-        CommandScheduler.getInstance().run();
-        mRobotContainer.LogRobotDataToRoboRio( mLogger );
-        mRobotContainer.UpdateSmartDashboard();
-
-        // ---------- ROBOT CHARACTERIZATION ----------
-        // startTime = Timer.getFPGATimestamp();
-        // counter = 0;
-        // ---------- ROBOT CHARACTERIZATION ----------
-    
     }
+
+    /**
+    * This method is called periodically whenever the robot is in autonomous mode.
+    */     
+    @Override
+    public void autonomousPeriodic () {
+        if ( mRobotContainer.GetMatchState() != MatchState_t.autonomousPeriodic ) {
+            // mLogger.info("<=========== AUTONOMOUS PERIODIC ===========>");
+            mRobotContainer.SetMatchState( MatchState_t.autonomousPeriodic );
+        }
+        CommandScheduler.getInstance().run();
+    }
+
 
     /**
     * This method is called when the robot is entering teleop. This method gets
@@ -152,14 +87,12 @@ public class Robot extends TimedRobot {
     */     
     @Override
     public void teleopInit () {
-        mLogger.info( "<=========== TELEOP INIT ===========>" );
+        // mLogger.info( "<=========== TELEOP INIT ===========>" );
         mRobotContainer.SetMatchState( MatchState_t.teleopInit );
         if (mAutonomousCommand != null) {
             mAutonomousCommand.cancel();
         }
         CommandScheduler.getInstance().run();
-        mRobotContainer.LogRobotDataToRoboRio( mLogger );
-        mRobotContainer.UpdateSmartDashboard();
        
         // mLocalDateTime = LocalDateTime.now();
         // mCanbusLoggerData[0] = (byte) ( mLocalDateTime.getYear() - 2000 );
@@ -174,10 +107,12 @@ public class Robot extends TimedRobot {
     /**
     * This method is called whenever the robot is in a periodic mode. This
     * means that both autonomous periodic and teleop periodic will run prior
-    * to this code.  The disabled periodic will also run prior to this method.
+    * to this code. The disabled periodic will also run prior to this method.
     */     
     @Override
     public void robotPeriodic () {
+        //mRobotContainer.LogRobotDataToRoboRio( mLogger );
+        mRobotContainer.UpdateSmartDashboard();        
     }
 
     /**
@@ -186,76 +121,9 @@ public class Robot extends TimedRobot {
     @Override
     public void disabledPeriodic () {
         if ( mRobotContainer.GetMatchState() != MatchState_t.disabledPeriodic ) {
-            mLogger.info("<=========== DISABLED PERIODIC ===========>");
+            // mLogger.info("<=========== DISABLED PERIODIC ===========>");
             mRobotContainer.SetMatchState( MatchState_t.disabledPeriodic );
-            mRobotContainer.LogRobotDataToRoboRio( mLogger );
         }
-        mRobotContainer.UpdateSmartDashboard();
-
-        // ---------- ROBOT CHARACTERIZATION ----------
-        // m_configCal = SmartDashboard.getBoolean("IMU Config Cal", false);
-        // m_reset = SmartDashboard.getBoolean("IMU Reset", false);
-        // m_runCal = SmartDashboard.getBoolean("IMU Run Cal", false);
-        // if (m_configCal) {
-        //     mRobotContainer.mDrivetrain.ConfigureIMU();
-        //     m_configCal = SmartDashboard.putBoolean("IMU Config Cal", false);
-        // }
-        // if (m_reset) {
-        //     mRobotContainer.mDrivetrain.ResetIMU();
-        //     m_reset = SmartDashboard.putBoolean("IMU Reset", false);
-        // }
-        // if (m_runCal) {
-        //     mRobotContainer.mDrivetrain.CalibrateIMU();
-        //     m_runCal = SmartDashboard.putBoolean("IMU Run Cal", false);
-        // }
-        // ---------- ROBOT CHARACTERIZATION ----------
-
-    }
-
-    /**
-    * This method is called periodically whenever the robot is in autonomous mode.
-    */     
-    @Override
-    public void autonomousPeriodic () {
-        if ( mRobotContainer.GetMatchState() != MatchState_t.autonomousPeriodic ) {
-            mLogger.info("<=========== AUTONOMOUS PERIODIC ===========>");
-            mRobotContainer.SetMatchState( MatchState_t.autonomousPeriodic );
-        }
-        CommandScheduler.getInstance().run();
-        mRobotContainer.LogRobotDataToRoboRio( mLogger );
-        mRobotContainer.UpdateSmartDashboard();
-
-        // ---------- ROBOT CHARACTERIZATION ----------
-        // double now = Timer.getFPGATimestamp();
-        // double leftPosition = mRobotContainer.mDrivetrain.GetLeftPositionRotations();
-        // double leftRate = mRobotContainer.mDrivetrain.GetLeftVelocityRotationsPerSecond();
-        // double rightPosition = mRobotContainer.mDrivetrain.GetRightPositionRotations();
-        // double rightRate = mRobotContainer.mDrivetrain.GetRightVelocityRotationsPerSecond();
-        // double gyroAngleRadians = mRobotContainer.mDrivetrain.GetGyroAngleInRadians();
-        // double battery = RobotController.getBatteryVoltage();
-        // double motorVolts = battery * Math.abs(priorAutospeed);
-        // double leftMotorVolts = motorVolts;
-        // double rightMotorVolts = motorVolts;
-        // double autospeed = autoSpeedEntry.getDouble(0);
-        // priorAutospeed = autospeed;
-        // mRobotContainer.mDrivetrain.mDifferentialDrive.tankDrive(
-        //     (rotateEntry.getBoolean(false) ? -1 : 1) * autospeed, autospeed,
-        //     false);
-        // numberArray[0] = now;
-        // numberArray[1] = battery;
-        // numberArray[2] = autospeed;
-        // numberArray[3] = leftMotorVolts;
-        // numberArray[4] = rightMotorVolts;
-        // numberArray[5] = leftPosition;
-        // numberArray[6] = rightPosition;
-        // numberArray[7] = leftRate;
-        // numberArray[8] = rightRate;
-        // numberArray[9] = gyroAngleRadians;
-        // for (double num : numberArray) {
-        //   entries.add(num);
-        // }
-        // counter++;
-        // ---------- ROBOT CHARACTERIZATION ----------
     }
 
     /**
@@ -264,12 +132,10 @@ public class Robot extends TimedRobot {
     @Override
     public void teleopPeriodic () {
         if ( mRobotContainer.GetMatchState() != MatchState_t.teleopPeriodic ) {
-            mLogger.info("<=========== TELEOP PERIODIC ===========>");
+            // mLogger.info("<=========== TELEOP PERIODIC ===========>");
             mRobotContainer.SetMatchState( MatchState_t.teleopPeriodic );
         }
         CommandScheduler.getInstance().run();
-        mRobotContainer.LogRobotDataToRoboRio( mLogger );
-        mRobotContainer.UpdateSmartDashboard();
         // mCanbusLogger.writeRTRFrame(2, 16);                 // API Class: 1, API index: 0
     }
 
@@ -280,10 +146,9 @@ public class Robot extends TimedRobot {
     */       
     @Override
     public void testInit () {
-        mLogger.info( "<=========== TEST INIT ===========>" );
+        // mLogger.info( "<=========== TEST INIT ===========>" );
         CommandScheduler.getInstance().enable();            // Re-enable the command scheduler
-        //mRobotContainer.LogRobotDataToRoboRio( mLogger );
-        mRobotContainer.UpdateSmartDashboard();
+        
     }    
 
     /**

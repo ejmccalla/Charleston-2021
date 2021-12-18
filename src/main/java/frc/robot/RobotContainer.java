@@ -1,6 +1,5 @@
 package frc.robot;
 
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.SolenoidBase;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -9,7 +8,6 @@ import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.PowerDistributionPanel;
-import frc.robot.Constants.DRIVETRAIN;
 import frc.robot.Constants.HARDWARE;
 import frc.robot.Constants.DRIVER;
 import frc.robot.Constants.PRESSURE_SENSOR;
@@ -17,61 +15,25 @@ import frc.robot.lib.drivers.PressureSensor;
 import frc.robot.subsystems.Drivetrain;
 import frc.robot.commands.TeleopDrive;
 import frc.robot.commands.TurnToTarget;
-import frc.robot.commands.DriveToTarget;
 import frc.robot.commands.Auto1;
 import frc.robot.commands.Auto2;
+import frc.robot.commands.GoToTarget;
 import frc.robot.commands.RamseteTest;
-import org.apache.logging.log4j.Logger;
-
 import edu.wpi.first.wpilibj.geometry.Pose2d;
 import edu.wpi.first.wpilibj.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.geometry.Translation2d;
 import edu.wpi.first.wpilibj.trajectory.Trajectory;
-import edu.wpi.first.wpilibj.trajectory.TrajectoryConfig;
 import edu.wpi.first.wpilibj.trajectory.TrajectoryGenerator;
-import edu.wpi.first.wpilibj.kinematics.DifferentialDriveKinematics;
-import edu.wpi.first.wpilibj.trajectory.constraint.DifferentialDriveVoltageConstraint;
-import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward;
-import edu.wpi.first.wpilibj.controller.RamseteController;
-import edu.wpi.first.wpilibj.controller.PIDController;
 import java.util.List;
+import edu.wpi.first.wpilibj.util.Units;
+
+import org.apache.logging.log4j.Logger;
 
 /**
 * The RobotContainer class contains the subsystems, button/joystick bindings
 * and logging.
 */
 public class RobotContainer {
-
-    private static final DifferentialDriveKinematics kDriveKinematics =
-        new DifferentialDriveKinematics(DRIVETRAIN.kTRACK_WIDTH_METERS);
-    private double kMaxSpeedMetersPerSecond = 3.0;
-    private double kMaxAccelerationMetersPerSecondSquared = 3.0;
-
-    // An example trajectory to follow.  All units in meters.
-    public Trajectory exampleTrajectory = TrajectoryGenerator.generateTrajectory(
-        // Start at the origin facing the +X direction
-        new Pose2d(0, 0, new Rotation2d(0)),
-        // Pass through these two interior waypoints, making an 's' curve path
-        List.of(
-            new Translation2d(1, 1),
-            new Translation2d(2, -1)
-            // new Translation2d(1, 0),
-            // new Translation2d(2, 0)
-        ),
-        // End 3 meters straight ahead of where we started, facing forward
-        new Pose2d(3, 0, new Rotation2d(0)),
-        // Pass config
-        new TrajectoryConfig(kMaxSpeedMetersPerSecond,
-                            kMaxAccelerationMetersPerSecondSquared)
-            // Add kinematics to ensure max speed is actually obeyed
-            .setKinematics(kDriveKinematics)
-            // Apply the voltage constraint
-            .addConstraint(new DifferentialDriveVoltageConstraint(
-                new SimpleMotorFeedforward(DRIVETRAIN.kS,
-                    DRIVETRAIN.kV,
-                    DRIVETRAIN.kA),
-                kDriveKinematics,
-                10)));
 
     // State enumerations
     public static enum MatchState_t {
@@ -114,8 +76,12 @@ public class RobotContainer {
     private MatchState_t mMatchState;
 
     // Logging
-    private final String mLoggingHeader = "Time,Match State,Pressure (PSI),PDP Voltage,PDP Slot 0 Current";
-                                
+    //private final String mLoggingHeader = "Time,Match State,Pressure (PSI),PDP Voltage,PDP Slot 0 Current";
+                               
+    // Auto trajectories - the drivetrain object needs to be created before building trajectories
+    private final Trajectory exampleTrajectory;
+
+
     /**
     * This method will rturn the current match state.
     *
@@ -141,26 +107,7 @@ public class RobotContainer {
     * @return Command The autonomous command to run
     */     
     public Command GetAutonomousCommand () {
-        
-        return new RamseteTest(
-            exampleTrajectory,
-            mDrivetrain::getPose,
-            new RamseteController( 2.0, 0.7 ),
-            new SimpleMotorFeedforward(DRIVETRAIN.kS,
-                DRIVETRAIN.kV,
-                DRIVETRAIN.kA),
-            kDriveKinematics,
-            mDrivetrain::getWheelSpeeds,
-            // new PIDController(10.0, 0, 0),
-            // new PIDController(10.0, 0, 0),
-            new PIDController(0, 0, 0),
-            new PIDController(0, 0, 0),            
-            // RamseteCommand passes volts to the callback
-            mDrivetrain::SetOpenLoopOutput,
-            mDrivetrain
-            );
-        
-        //return mAutoChooser.getSelected();
+        return mAutoChooser.getSelected();
     }
 
     /**
@@ -178,7 +125,7 @@ public class RobotContainer {
     * @param fileLogger Logger The logger to write the header to
     */ 
     public void LogRobotDataHeader ( Logger fileLogger ) {
-        fileLogger.debug( mLoggingHeader + "," + mDrivetrain.mLoggingHeader );
+        //fileLogger.debug( mLoggingHeader + "," + mDrivetrain.mLoggingHeader );
     }   
 
     /**
@@ -187,13 +134,13 @@ public class RobotContainer {
     * @param fileLogger Logger The logger to write the data to
     */
     public void LogRobotDataToRoboRio ( Logger fileLogger ) {
-        fileLogger.debug( "{},{},{},{},{},{}", 
-                          Timer.getFPGATimestamp(),
-                          mMatchState.toString(),
-                          mPressureSensor.GetPressureInPSI(),
-                          mPDP.getVoltage(),
-                          mPDP.getCurrent( DRIVETRAIN.LEFT_MASTER_ID )
-                          );
+        // fileLogger.debug( "{},{},{},{},{},{}", 
+        //                   Timer.getFPGATimestamp(),
+        //                   mMatchState.toString(),
+        //                   mPressureSensor.GetPressureInPSI(),
+        //                   mPDP.getVoltage(),
+        //                   mPDP.getCurrent( DRIVETRAIN.LEFT_MASTER_ID )
+        //                   );
     }
 
     /**
@@ -204,8 +151,10 @@ public class RobotContainer {
         mDriverJoystickThrottleButton.whenPressed( new InstantCommand( () -> 
             mDrivetrain.SetHighGear( 
                 !mDrivetrain.IsHighGear() ), mDrivetrain ) );
-        mDriverButtonBoard_2.whileHeld( new DriveToTarget( 
-            mDrivetrain, 3.5 ) );
+        // mDriverButtonBoard_2.whileHeld( new DriveToTarget( 
+        //     mDrivetrain, 3.5 ) );
+        mDriverButtonBoard_2.whenPressed( new GoToTarget( 
+            mDrivetrain) );        
         mDriverJoystickTurnButton.whenPressed( new InstantCommand( () -> 
             mDrivetrain.SetReversedDirection( 
                 !mDrivetrain.IsReversedDirection() ), mDrivetrain ) );
@@ -226,6 +175,7 @@ public class RobotContainer {
             mDrivetrain, mDriverJoystickThrottle, mDriverJoystickTurn ) );
         mAutoChooser.setDefaultOption( "Auto 1", new Auto1( mDrivetrain ) );
         mAutoChooser.addOption( "Auto 2", new Auto2( mDrivetrain ) );
+        mAutoChooser.addOption( "RamseteTest", new RamseteTest( mDrivetrain, exampleTrajectory ) );
         SmartDashboard.putData( "Auto Chooser", mAutoChooser );
         mPDP.clearStickyFaults();
         SolenoidBase.clearAllPCMStickyFaults( HARDWARE.PCM_ID );        
@@ -243,7 +193,6 @@ public class RobotContainer {
     * @param driverButtonBoard_2 JoystickButton Driver button board 2
     * @param driverButtonBoard_3 JoystickButton Driver button board 3
     * @param pressureSensor PressureSensor Analog pressure sensor
-    * @param photoeye Photoeye Digital photo-eye
     * @param powerDistributionPanel PowerDistributionPanel power distribution panel
     */
     public RobotContainer ( 
@@ -259,8 +208,31 @@ public class RobotContainer {
         mDriverButtonBoard_2 = driverButtonBoard_2;
         mDriverButtonBoard_3 = driverButtonBoard_3;
         mPressureSensor = pressureSensor;
-        //mPhotoeye = photoeye;
         mPDP = powerDistributionPanel;
+        // exampleTrajectory = TrajectoryGenerator.generateTrajectory(
+        //     new Pose2d(0, 0, new Rotation2d(0)),
+        //         List.of(
+        //                 new Translation2d(1, 0),
+        //                 new Translation2d(2, 1)
+        //                 // new Translation2d(1, 1),
+        //                 // new Translation2d(2, -1)
+        //                 // new Translation2d(1, 0),
+        //                 // new Translation2d(2, 0)
+        //         ),
+        //     new Pose2d(3, 2, new Rotation2d( Math.toRadians(0.0) )),
+        //     mDrivetrain.mTrajectoryConfig);
+
+        exampleTrajectory = TrajectoryGenerator.generateTrajectory(
+            new Pose2d(0, 0, new Rotation2d( Units.degreesToRadians(-45.0) )),
+                List.of(
+                    new Translation2d(Units.inchesToMeters(54-48), Units.inchesToMeters(36-78)),
+                    new Translation2d(Units.inchesToMeters(54-48), Units.inchesToMeters(36-108)),
+                    new Translation2d(Units.inchesToMeters(80-48), Units.inchesToMeters(36-144)),
+                    new Translation2d(Units.inchesToMeters(115-48), Units.inchesToMeters(36-167))
+                ),
+            new Pose2d(Units.inchesToMeters(145-48), Units.inchesToMeters(36-167), new Rotation2d( Units.degreesToRadians(0.0) )),
+            mDrivetrain.mTrajectoryConfig);
+
         Initialize();
     }
 

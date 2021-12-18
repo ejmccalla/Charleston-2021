@@ -19,6 +19,12 @@ import com.analog.adis16470.frc.ADIS16470_IMU;
 import edu.wpi.first.wpilibj.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.wpilibj.geometry.Pose2d;
 import edu.wpi.first.wpilibj.kinematics.DifferentialDriveWheelSpeeds;
+import edu.wpi.first.wpilibj.trajectory.TrajectoryConfig;
+import edu.wpi.first.wpilibj.kinematics.DifferentialDriveKinematics;
+import edu.wpi.first.wpilibj.trajectory.constraint.DifferentialDriveVoltageConstraint;
+import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward;
+import edu.wpi.first.wpilibj.controller.RamseteController;
+import edu.wpi.first.wpilibj.geometry.Rotation2d;
 
 /**
 * The Drivetrain class is designed to use the command-based programming model
@@ -42,6 +48,8 @@ public class Drivetrain extends SubsystemBase {
 
     // Drive conrol (both open and closed loop)
     public DifferentialDrive mDifferentialDrive;
+    public SpeedControllerGroup mLeftSpeedControllerGroup;
+    public SpeedControllerGroup mRightSpeedControllerGroup;
 
     // Track the robots whereabouts
     private final DifferentialDriveOdometry mOdometry;
@@ -57,28 +65,37 @@ public class Drivetrain extends SubsystemBase {
     private boolean mIsBrakeMode;
 
     // Logging data
-    public final String mLoggingHeader = "Current Command,Desired Command,Current Pipeline,Desired Pipeline,Targeting " +
-                                         "State,Failing State,Found Target,On Target Turn,On Target Distance,Output " +
-                                         "Turn,Output Distance,dt (s),Error Turn (deg),Error Turn (deg/s),Error Turn " +
-                                         "Total (deg),Distance Estimator,Target Distance (ft),Error Distance (ft)";
-    public class LoggingData {
-        public SharedState mLimelightVisionSharedState;
-        public double mLeftEncoderPositionInRotations;
-        public double mRightEncoderPositionInRotations;
-        public double mLeftEncoderVelocityInRotationsPerSecond;
-        public double mRightEncoderVelocityInRotationsPerSecond;
-        public double mGyroAngleInRadians;
-        public LoggingData ( SharedState limelightVisionSharedState ) {
-            mLimelightVisionSharedState = limelightVisionSharedState;
-            mLeftEncoderPositionInRotations = 0.0;
-            mRightEncoderPositionInRotations = 0.0;
-            mLeftEncoderVelocityInRotationsPerSecond = 0.0;
-            mRightEncoderVelocityInRotationsPerSecond = 0.0;
-            mGyroAngleInRadians = 0.0;
-        }
-    }
-    LoggingData mLoggingData;
+    // public final String mLoggingHeader = "Current Command,Desired Command,Current Pipeline,Desired Pipeline,Targeting " +
+    //                                      "State,Failing State,Found Target,On Target Turn,On Target Distance,Output " +
+    //                                      "Turn,Output Distance,dt (s),Error Turn (deg),Error Turn (deg/s),Error Turn " +
+    //                                      "Total (deg),Distance Estimator,Target Distance (ft),Error Distance (ft)";
+    // public class LoggingData {
+    //     public SharedState mLimelightVisionSharedState;
+    //     public double mLeftEncoderPositionInRotations;
+    //     public double mRightEncoderPositionInRotations;
+    //     public double mLeftEncoderVelocityInRotationsPerSecond;
+    //     public double mRightEncoderVelocityInRotationsPerSecond;
+    //     public double mGyroAngleInRadians;
+    //     public LoggingData ( SharedState limelightVisionSharedState ) {
+    //         mLimelightVisionSharedState = limelightVisionSharedState;
+    //         mLeftEncoderPositionInRotations = 0.0;
+    //         mRightEncoderPositionInRotations = 0.0;
+    //         mLeftEncoderVelocityInRotationsPerSecond = 0.0;
+    //         mRightEncoderVelocityInRotationsPerSecond = 0.0;
+    //         mGyroAngleInRadians = 0.0;
+    //     }
+    // }
+    // LoggingData mLoggingData;
 
+    // Ramsete controller
+    private double kMaxSpeedMetersPerSecond = 1.5;
+    private double kMaxAccelerationMetersPerSecondSquared = 1.5;
+    private double kMaxVoltage = 10.0;
+    public final RamseteController mRamseteConroller = new RamseteController( 2.0, 0.7 );
+    public final SimpleMotorFeedforward mFeedforward = new SimpleMotorFeedforward( DRIVETRAIN.kS, DRIVETRAIN.kV, DRIVETRAIN.kA );
+    public final DifferentialDriveKinematics mDriveKinematics = new DifferentialDriveKinematics( DRIVETRAIN.kTRACK_WIDTH_METERS );
+    public final DifferentialDriveVoltageConstraint mDriveConstraints = new DifferentialDriveVoltageConstraint( mFeedforward, mDriveKinematics, kMaxVoltage );
+    public final TrajectoryConfig mTrajectoryConfig = new TrajectoryConfig( kMaxSpeedMetersPerSecond, kMaxAccelerationMetersPerSecondSquared ).setKinematics( mDriveKinematics ).addConstraint( mDriveConstraints );
 
     //-----------------------------------------------------------------------------------------------------------------
     /*                                              PUBLIC API METHODS                                               */
@@ -250,8 +267,8 @@ public class Drivetrain extends SubsystemBase {
     * This method will set the output based on a motor voltage.
     */
     public void SetOpenLoopOutput( double leftVolts, double rightVolts ) {
-        mLeftMaster.setVoltage( leftVolts );
-        mRightMaster.setVoltage( -rightVolts );
+        mLeftSpeedControllerGroup.setVoltage( leftVolts );
+        mRightSpeedControllerGroup.setVoltage( -rightVolts );
         mDifferentialDrive.feed();
       }
 
@@ -378,9 +395,9 @@ public class Drivetrain extends SubsystemBase {
     *
     * @return LoggingData A class holding all of the logging data
     */
-    public LoggingData GetLoggingData () {
-        return mLoggingData;
-    }
+    // public LoggingData GetLoggingData () {
+    //     return mLoggingData;
+    // }
 
 
     //-----------------------------------------------------------------------------------------------------------------
@@ -458,7 +475,7 @@ public class Drivetrain extends SubsystemBase {
     */  
     public Drivetrain ( WPI_TalonSRX leftMaster, WPI_VictorSPX leftFollower_1, WPI_VictorSPX leftFollower_2,
                         WPI_TalonSRX rightMaster, WPI_VictorSPX rightFollower_1, WPI_VictorSPX rightFollower_2,
-                        DifferentialDrive differentialDrive, LimelightVision limelightVision, DoubleSolenoid shifter, ADIS16470_IMU imu ) {
+                        LimelightVision limelightVision, DoubleSolenoid shifter, ADIS16470_IMU imu ) {
         mLeftMaster = leftMaster;
         mLeftFollower_1 = leftFollower_1; 
         mLeftFollower_2 = leftFollower_2;
@@ -467,11 +484,13 @@ public class Drivetrain extends SubsystemBase {
         mRightFollower_2 = rightFollower_2;
         mShifter = shifter;
         mIMU = imu;
-        mDifferentialDrive = differentialDrive;
+        mLeftSpeedControllerGroup = new SpeedControllerGroup(leftMaster, leftFollower_1, leftFollower_2);
+        mRightSpeedControllerGroup = new SpeedControllerGroup(rightMaster, rightFollower_1, rightFollower_2);
+        mDifferentialDrive = new DifferentialDrive( mLeftSpeedControllerGroup, mRightSpeedControllerGroup );
         mOdometry = new DifferentialDriveOdometry( mIMU.getRotation2d() );
         mLimelightVisionController = limelightVision;
         mLimelightVisionControllerSharedState = mLimelightVisionController.GetSharedState();
-        mLoggingData = new LoggingData( mLimelightVisionControllerSharedState );
+        //mLoggingData = new LoggingData( mLimelightVisionControllerSharedState );
         if ( DRIVETRAIN.VISION_THREADED ) {
             mLimelightVisionControllerThread = new Notifier ( mLimelightVisionController.mThread ); 
             mLimelightVisionControllerThread.startPeriodic( 0.01 );
@@ -492,8 +511,6 @@ public class Drivetrain extends SubsystemBase {
         WPI_VictorSPX rightFollower_2 = new WPI_VictorSPX( DRIVETRAIN.RIGHT_FOLLOWER_2_ID );
         DoubleSolenoid shifter = new DoubleSolenoid( HARDWARE.PCM_ID, DRIVETRAIN.HIGH_GEAR_SOLENOID_ID, 
                                                      DRIVETRAIN.LOW_GEAR_SOLENOID_ID );
-        DifferentialDrive differentialDrive = new DifferentialDrive( new SpeedControllerGroup(leftMaster, leftFollower_1, leftFollower_2),
-                                                                     new SpeedControllerGroup(rightMaster, rightFollower_1, rightFollower_2) );
         LimelightVision limelightVision = LimelightVision.Create( DRIVETRAIN.VISION_SEARCH_TIMEOUT_S,
                                                                   DRIVETRAIN.VISION_SEEK_TIMEOUT_S,
                                                                   DRIVETRAIN.VISION_SEEK_RETRY_LIMIT,
@@ -517,7 +534,7 @@ public class Drivetrain extends SubsystemBase {
         ADIS16470_IMU imu = new ADIS16470_IMU(); 
 
         return new Drivetrain( leftMaster, leftFollower_1, leftFollower_2, rightMaster, rightFollower_1,
-                               rightFollower_2, differentialDrive, limelightVision, shifter, imu );
+                               rightFollower_2, limelightVision, shifter, imu );
     }
 
     /**
@@ -528,13 +545,13 @@ public class Drivetrain extends SubsystemBase {
     */ 
     @Override
     public void periodic () {
-        if ( !DRIVETRAIN.VISION_THREADED ) {
-            mLimelightVisionController.RunUpdate();
-        }
-        mLimelightVisionControllerSharedState = mLimelightVisionController.GetSharedState();
-        mLoggingData.mLimelightVisionSharedState = mLimelightVisionControllerSharedState;
+        // if ( !DRIVETRAIN.VISION_THREADED ) {
+        //     mLimelightVisionController.RunUpdate();
+        // }
+        // mLimelightVisionControllerSharedState = mLimelightVisionController.GetSharedState();
+        // mLoggingData.mLimelightVisionSharedState = mLimelightVisionControllerSharedState;
         // The odometry class requires the gyro angle to be counter-clockwise increasing
-        mOdometry.update( mIMU.getRotation2d(), GetLeftPositionMeters(), GetRightPositionMeters() );
+        mOdometry.update( Rotation2d.fromDegrees(mIMU.getAngle()), GetLeftPositionMeters(), GetRightPositionMeters() );
     }
 
 }

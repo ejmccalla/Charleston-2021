@@ -6,30 +6,68 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.controller.PIDController;
 import edu.wpi.first.wpilibj.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.kinematics.DifferentialDriveWheelSpeeds;
+import edu.wpi.first.wpilibj.geometry.Pose2d;
+import edu.wpi.first.wpilibj.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.geometry.Translation2d;
 import edu.wpi.first.wpilibj.trajectory.Trajectory;
+import edu.wpi.first.wpilibj.trajectory.TrajectoryGenerator;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.util.Units;
 //import org.apache.logging.log4j.Logger;
 
-public class RamseteTest extends CommandBase {
+public class GoToTarget extends CommandBase {
 
-    private final Trajectory m_trajectory;
     private final Drivetrain m_drivetrain;
     private final Timer m_timer = new Timer();
     private final PIDController m_leftController = new PIDController(10.0, 0, 0);
     private final PIDController m_rightController = new PIDController(10.0, 0, 0);
+    private Trajectory m_trajectory;
     private DifferentialDriveWheelSpeeds m_prevSpeeds;
     private double m_prevTime;
     //private Logger mLogger;
 
-    public RamseteTest( Drivetrain drivetrain, Trajectory trajectory ) {
+    public GoToTarget( Drivetrain drivetrain ) {
         m_drivetrain = drivetrain;
-        m_trajectory = trajectory;
         //mLogger = logger;
         addRequirements(m_drivetrain);
-        this.setName( "Ramsete Test" );
+        this.setName( "GoToTarget" );
     }
 
     @Override
     public void initialize() {
+        double[] defaultValue = new double[0];
+        double[] waypoints_x_in = NetworkTableInstance.getDefault().getEntry("/CoProcessor/Waypoints_x_in").getDoubleArray(defaultValue);
+        double[] waypoints_y_in = NetworkTableInstance.getDefault().getEntry("/CoProcessor/Waypoints_y_in").getDoubleArray(defaultValue);
+        
+        // Need at least 4 waypoints...start, 2 interior, stop 
+        if (waypoints_x_in.length < 4) {
+            m_trajectory = new Trajectory(Arrays.asList(new Trajectory.State()));
+            System.out.println("Not enough trajectory points");
+        
+        } else {
+            System.out.println("Start building trajectory ");
+            List<Translation2d> inner_pts = new ArrayList<Translation2d>();
+            for (int i = 1 ; i != waypoints_x_in.length-1 ; i++) {
+                inner_pts.add(new Translation2d( Units.inchesToMeters(waypoints_x_in[i] ), 
+                                                 Units.inchesToMeters(waypoints_y_in[i] ) ) );
+            }
+
+            m_trajectory = TrajectoryGenerator.generateTrajectory(
+                new Pose2d( 0.0, 0.0, new Rotation2d(Units.degreesToRadians(-45.0)) ),
+                inner_pts,
+                new Pose2d(Units.inchesToMeters(waypoints_x_in[waypoints_x_in.length-1]),
+                           Units.inchesToMeters(waypoints_y_in[waypoints_y_in.length-1]),
+                           new Rotation2d(Units.degreesToRadians(0.0)) ),
+                m_drivetrain.mTrajectoryConfig );
+
+                System.out.println("Done building trajectory ");
+                System.out.println("Trajectory time : " + m_trajectory.getTotalTimeSeconds());
+
+        }
+
         m_prevTime = -1;
         var initialState = m_trajectory.sample( 0 );
         m_prevSpeeds = m_drivetrain.mDriveKinematics.toWheelSpeeds( new ChassisSpeeds( initialState.velocityMetersPerSecond, 0, initialState.curvatureRadPerMeter * initialState.velocityMetersPerSecond ) );

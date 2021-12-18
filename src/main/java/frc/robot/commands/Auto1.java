@@ -15,7 +15,7 @@ public class Auto1 extends CommandBase {
 
     @Override
     public void execute() {
-
+       mDrivetrain.mDifferentialDrive.feed();
     }
 
     @Override
