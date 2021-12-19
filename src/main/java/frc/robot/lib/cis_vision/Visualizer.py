@@ -1,4 +1,4 @@
-# C:\Users\ejmcc\AppData\Local\Programs\Python\Python37\python "C:\Users\ejmcc\GIT Projects\Charleston-2021\src\main\java\frc\robot\lib\planner\Visualizer.py"
+# C:\Users\324620\AppData\Local\Programs\Python\Python37\python "C:\Users\324620\Documents\U of M\CSCI 8980\project\Charleston-2021\src\main\java\frc\robot\lib\cis_vision\Visualizer.py"
 from fields.field import field
 from AStarPlanner import AStarPlanner
 import cv2
@@ -118,7 +118,7 @@ if __name__ == '__main__':
                          int( visualizer.planner.mapper.graph.get_node( start_node_id ).y_in ) )
         end_center = ( int( visualizer.planner.mapper.graph.get_node( end_node_id ).x_in ),
                        int( visualizer.planner.mapper.graph.get_node( end_node_id ).y_in ) )
-
+        print(start_center, end_center)
 
         visualizer.planner.initialize( visualizer.planner.mapper.graph.get_node(start_node_id), 
                                        visualizer.planner.mapper.graph.get_node(end_node_id) )
@@ -140,25 +140,25 @@ if __name__ == '__main__':
 
             #f = cv2.putText(f, str(int(visualizer.planner.get_current_node().f)), next_center, cv2.FONT_HERSHEY_SIMPLEX, 0.25, (127,127,0), 1)
             # images.append(f.copy())
-            visualizer.display_field_map( f )
+            # visualizer.display_field_map( f )
             keep_searching = visualizer.planner.iteration()
 
-        # f = cv2.cvtColor( visualizer.planner.mapper.field_map_in, cv2.COLOR_GRAY2RGB )
-        # f = visualizer.planner.mapper.add_grid_to_map( f,
-        #                                     visualizer.planner.mapper.empty_grid, 
-        #                                     ( 127, 127, 127 ) )
-        # f = cv2.circle( f, start_center, 5,  (255, 0, 0), -1 )
-        # f = cv2.circle( f, end_center, 5,  (0, 255, 0), -1 )
-        # wp_x, wp_y = visualizer.planner.get_waypoints()
-        # pt1 = None
-        # pt2 = None
-        # for x, y in zip( wp_x, wp_y ):
-        #     pt2 = pt1
-        #     pt1 = ( int( x ), int( y ) )
-        #     if pt2 is not None and pt1 is not None:
-        #         f = cv2.line( f, pt1, pt2, (127, 127, 0), 3 )
+        f = cv2.cvtColor( visualizer.planner.mapper.field_map_in, cv2.COLOR_GRAY2RGB )
+        f = visualizer.planner.mapper.add_grid_to_map( f,
+                                            visualizer.planner.mapper.empty_grid, 
+                                            ( 127, 127, 127 ) )
+        f = cv2.circle( f, start_center, 5,  (255, 0, 0), -1 )
+        f = cv2.circle( f, end_center, 5,  (0, 255, 0), -1 )
+        wp_x, wp_y = visualizer.planner.get_waypoints()
+        pt1 = None
+        pt2 = None
+        for x, y in zip( wp_x, wp_y ):
+            pt2 = pt1
+            pt1 = ( int( x ), int( y ) )
+            if pt2 is not None and pt1 is not None:
+                f = cv2.line( f, pt1, pt2, (127, 127, 0), 3 )
 
-        # visualizer.display_field_map( f )
+        visualizer.display_field_map( f )
 
         
 
