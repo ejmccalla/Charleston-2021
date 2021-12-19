@@ -1,6 +1,6 @@
 package frc.robot.subsystems;
 
-import edu.wpi.first.wpilibj.Notifier;
+// import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
@@ -8,13 +8,12 @@ import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.HARDWARE;
 import frc.robot.Constants.DRIVETRAIN;
 import frc.robot.lib.drivers.TalonSRX;
 import frc.robot.lib.drivers.VictorSPX;
-import frc.robot.lib.controllers.LimelightVision;
-import frc.robot.lib.controllers.LimelightVision.SharedState;
+// import frc.robot.lib.controllers.LimelightVision;
+// import frc.robot.lib.controllers.LimelightVision.SharedState;
 import com.analog.adis16470.frc.ADIS16470_IMU;
 import edu.wpi.first.wpilibj.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.wpilibj.geometry.Pose2d;
@@ -24,7 +23,12 @@ import edu.wpi.first.wpilibj.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.wpilibj.trajectory.constraint.DifferentialDriveVoltageConstraint;
 import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward;
 import edu.wpi.first.wpilibj.controller.RamseteController;
+import edu.wpi.first.wpilibj.controller.PIDController;
 import edu.wpi.first.wpilibj.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.trajectory.Trajectory;
+import edu.wpi.first.wpilibj.kinematics.ChassisSpeeds;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.NetworkTableEntry;
 
 /**
 * The Drivetrain class is designed to use the command-based programming model
@@ -48,57 +52,47 @@ public class Drivetrain extends SubsystemBase {
 
     // Drive conrol (both open and closed loop)
     public DifferentialDrive mDifferentialDrive;
-    public SpeedControllerGroup mLeftSpeedControllerGroup;
-    public SpeedControllerGroup mRightSpeedControllerGroup;
+    private SpeedControllerGroup mLeftSpeedControllerGroup;
+    private SpeedControllerGroup mRightSpeedControllerGroup;
 
     // Track the robots whereabouts
     private final DifferentialDriveOdometry mOdometry;
 
-    // Limelight Controller Closed-loop control
-    private Notifier mLimelightVisionControllerThread;  // Threading interface only
-    private LimelightVision mLimelightVisionController;
-    private SharedState mLimelightVisionControllerSharedState;
+    // Limelight Controller for closed-loop control
+    // private Notifier mLimelightVisionControllerThread;  // Threading interface only
+    // private LimelightVision mLimelightVisionController;
+    // private SharedState mLimelightVisionControllerSharedState;
 
     // State variables
     private boolean mIsReversedDirection;
     private boolean mIsHighGear;
     private boolean mIsBrakeMode;
 
-    // Logging data
-    // public final String mLoggingHeader = "Current Command,Desired Command,Current Pipeline,Desired Pipeline,Targeting " +
-    //                                      "State,Failing State,Found Target,On Target Turn,On Target Distance,Output " +
-    //                                      "Turn,Output Distance,dt (s),Error Turn (deg),Error Turn (deg/s),Error Turn " +
-    //                                      "Total (deg),Distance Estimator,Target Distance (ft),Error Distance (ft)";
-    // public class LoggingData {
-    //     public SharedState mLimelightVisionSharedState;
-    //     public double mLeftEncoderPositionInRotations;
-    //     public double mRightEncoderPositionInRotations;
-    //     public double mLeftEncoderVelocityInRotationsPerSecond;
-    //     public double mRightEncoderVelocityInRotationsPerSecond;
-    //     public double mGyroAngleInRadians;
-    //     public LoggingData ( SharedState limelightVisionSharedState ) {
-    //         mLimelightVisionSharedState = limelightVisionSharedState;
-    //         mLeftEncoderPositionInRotations = 0.0;
-    //         mRightEncoderPositionInRotations = 0.0;
-    //         mLeftEncoderVelocityInRotationsPerSecond = 0.0;
-    //         mRightEncoderVelocityInRotationsPerSecond = 0.0;
-    //         mGyroAngleInRadians = 0.0;
-    //     }
-    // }
-    // LoggingData mLoggingData;
+    // Ramsete controller and PID controlers for closed-loop control during trajectory following
+    private final RamseteController mRamseteConroller = new RamseteController();
+    private final PIDController mLeftPIDController = new PIDController( 10.0, 0, 0 );
+    private final PIDController mRightPIDController = new PIDController( 10.0, 0, 0 );
 
-    // Ramsete controller
-    private double kMaxSpeedMetersPerSecond = 1.5;
-    private double kMaxAccelerationMetersPerSecondSquared = 1.5;
-    private double kMaxVoltage = 10.0;
-    public final RamseteController mRamseteConroller = new RamseteController( 2.0, 0.7 );
-    public final SimpleMotorFeedforward mFeedforward = new SimpleMotorFeedforward( DRIVETRAIN.kS, DRIVETRAIN.kV, DRIVETRAIN.kA );
-    public final DifferentialDriveKinematics mDriveKinematics = new DifferentialDriveKinematics( DRIVETRAIN.kTRACK_WIDTH_METERS );
-    public final DifferentialDriveVoltageConstraint mDriveConstraints = new DifferentialDriveVoltageConstraint( mFeedforward, mDriveKinematics, kMaxVoltage );
-    public final TrajectoryConfig mTrajectoryConfig = new TrajectoryConfig( kMaxSpeedMetersPerSecond, kMaxAccelerationMetersPerSecondSquared ).setKinematics( mDriveKinematics ).addConstraint( mDriveConstraints );
+    // Trajectory generation and following
+    private final SimpleMotorFeedforward mFeedforward = new SimpleMotorFeedforward( DRIVETRAIN.kS, DRIVETRAIN.kV, DRIVETRAIN.kA );
+    private final DifferentialDriveKinematics mDriveKinematics = new DifferentialDriveKinematics( DRIVETRAIN.kTRACK_WIDTH_METERS );
+    private final DifferentialDriveVoltageConstraint mDriveConstraints = new DifferentialDriveVoltageConstraint( mFeedforward, mDriveKinematics, DRIVETRAIN.MAX_VOLTAGE );
+    public final TrajectoryConfig mTrajectoryConfig = new TrajectoryConfig( DRIVETRAIN.MAX_SPEED_METERS_PER_SECOND, DRIVETRAIN.MAX_ACCELERATIOIN_METERS_PER_SECOND_SECOND ).setKinematics( mDriveKinematics ).addConstraint( mDriveConstraints );
+    private Trajectory mTrajectoryToFollow;
+    private DifferentialDriveWheelSpeeds mPreviousWheelSpeeds;
+
+    // Coprocessor
+    private NetworkTableEntry mWaypointsXEntry = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Waypoints_x_in");
+    private NetworkTableEntry mWaypointsYEntry = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Waypoints_y_in");
+    private NetworkTableEntry mPathValidEntry = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Path_Valid");
+    private double[] mDefaultWaypoints = new double[0];
+    public double[] mWaypointsX_in = mDefaultWaypoints;
+    public double[] mWaypointsY_in = mDefaultWaypoints;
+    public boolean mPathValid = false;
+
 
     //-----------------------------------------------------------------------------------------------------------------
-    /*                                              PUBLIC API METHODS                                               */
+    /*                                                PUBLIC METHODS                                                 */
     //-----------------------------------------------------------------------------------------------------------------
 
 
@@ -116,7 +110,6 @@ public class Drivetrain extends SubsystemBase {
             mRightMaster.setInverted( !mIsReversedDirection) ;
             mRightFollower_1.setInverted( !mIsReversedDirection );
             mRightFollower_2.setInverted( !mIsReversedDirection );
-
         }
     }
 
@@ -191,60 +184,56 @@ public class Drivetrain extends SubsystemBase {
         return mIsBrakeMode;
     }
 
-    /**
-    * This method will set the Limelight vision controller to perform the turn-to-target command.
-    */
-    public void StartTurnToTarget () {
-        mLimelightVisionController.TurnToTarget();
-    }
+    // /**
+    // * This method will set the Limelight vision controller to perform the turn-to-target command.
+    // */
+    // public void StartTurnToTarget () {
+    //     mLimelightVisionController.TurnToTarget();
+    // }
 
-    /**
-    * This method will set the Limelight vision controller to perform the drive-to-target command.
-    */
-    public void StartDriveToTarget ( double targetDistance ) {
-        mLimelightVisionController.DriveToTarget( targetDistance );
-    }
+    // /**
+    // * This method will set the Limelight vision controller to perform the drive-to-target command.
+    // */
+    // public void StartDriveToTarget ( double targetDistance ) {
+    //     mLimelightVisionController.DriveToTarget( targetDistance );
+    // }
 
-    /**
-    * This method will set the Limelight vision controller to idle.
-    */
-    public void EndLimelightCommand () {
-        mLimelightVisionController.Idle();
-    }
+    // /**
+    // * This method will set the Limelight vision controller to idle.
+    // */
+    // public void EndLimelightCommand () {
+    //     mLimelightVisionController.Idle();
+    // }
 
-    /**
-    * This method will set the Limelight vision controller's output to the curvature drives turning input and set the
-    * quickturn flag in order to get the robot to turn towards the target (taking into account the reversed direction
-    * state).
-    */
-    public void SetLimelightVisionControllerOutput ( boolean quickTurn ) {
-        if ( mIsReversedDirection ) {
-            //mDifferentialDrive.curvatureDrive( mLimelightVisionControllerSharedState.outputDistance,
-            //                                   -mLimelightVisionControllerSharedState.outputTurn, quickTurn );
-            mDifferentialDrive.arcadeDrive( mLimelightVisionControllerSharedState.outputDistance,
-                                            -mLimelightVisionControllerSharedState.outputTurn );
-        } else {
-            //mDifferentialDrive.curvatureDrive( -mLimelightVisionControllerSharedState.outputDistance,
-            //                                   mLimelightVisionControllerSharedState.outputTurn, quickTurn );
-            mDifferentialDrive.arcadeDrive( -mLimelightVisionControllerSharedState.outputDistance,
-                                            mLimelightVisionControllerSharedState.outputTurn );
+    // /**
+    // * This method will set the Limelight vision controller's output to the curvature drives turning input and set the
+    // * quickturn flag in order to get the robot to turn towards the target (taking into account the reversed direction
+    // * state).
+    // */
+    // public void SetLimelightVisionControllerOutput ( boolean quickTurn ) {
+    //     if ( mIsReversedDirection ) {
+    //         mDifferentialDrive.arcadeDrive( mLimelightVisionControllerSharedState.outputDistance,
+    //                                         -mLimelightVisionControllerSharedState.outputTurn );
+    //     } else {
+    //         mDifferentialDrive.arcadeDrive( -mLimelightVisionControllerSharedState.outputDistance,
+    //                                         mLimelightVisionControllerSharedState.outputTurn );
 
-        }
-    }
+    //     }
+    // }
 
-    /**
-    * This method will set the Limelight vision controller's output to the curvature drives turning input and set and
-    * use input as the throttle.
-    */
-    public void SetLimelightVisionControllerOutput ( double throttle, boolean quickTurn ) {
-        if ( mIsReversedDirection ) {
-            //mDifferentialDrive.curvatureDrive( throttle, -mLimelightVisionControllerSharedState.outputTurn, quickTurn );
-            mDifferentialDrive.arcadeDrive( throttle, -mLimelightVisionControllerSharedState.outputTurn );
-        } else {
-            //mDifferentialDrive.curvatureDrive( throttle, mLimelightVisionControllerSharedState.outputTurn, quickTurn );
-            mDifferentialDrive.arcadeDrive( throttle, mLimelightVisionControllerSharedState.outputTurn );
-        }
-    }
+    // /**
+    // * This method will set the Limelight vision controller's output to the curvature drives turning input and set and
+    // * use input as the throttle.
+    // */
+    // public void SetLimelightVisionControllerOutput ( double throttle, boolean quickTurn ) {
+    //     if ( mIsReversedDirection ) {
+    //         //mDifferentialDrive.curvatureDrive( throttle, -mLimelightVisionControllerSharedState.outputTurn, quickTurn );
+    //         mDifferentialDrive.arcadeDrive( throttle, -mLimelightVisionControllerSharedState.outputTurn );
+    //     } else {
+    //         //mDifferentialDrive.curvatureDrive( throttle, mLimelightVisionControllerSharedState.outputTurn, quickTurn );
+    //         mDifferentialDrive.arcadeDrive( throttle, mLimelightVisionControllerSharedState.outputTurn );
+    //     }
+    // }
 
     /**
     * This method will set the output based on the driver inputs and the reversed direction state.
@@ -257,12 +246,6 @@ public class Drivetrain extends SubsystemBase {
         }
     }
 
-
-
-
-
-
-
     /**
     * This method will set the output based on a motor voltage.
     */
@@ -272,138 +255,183 @@ public class Drivetrain extends SubsystemBase {
         mDifferentialDrive.feed();
       }
 
-    public double GetLeftPositionRotations() {
-        return mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER;
-    }
-    public double GetRightPositionRotations() {
-        return mRightMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER;
-    }
-    public double GetLeftVelocityRotationsPerSecond() {
-        return mLeftMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10; // native units per 100ms
-    }
-    public double GetRightVelocityRotationsPerSecond() {
-        return mRightMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10; // native units per 100ms
-    }
-    public double GetLeftPositionMeters() {
-        return mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
-    }
-    public double GetRightPositionMeters() {
-        return -mRightMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
-    }
-    public double GetLeftVelocityMetersPerSecond() {
-        return mLeftMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10 * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI; // native units per 100ms
-    }
-    public double GetRightVelocityMetersPerSecond() {
-        return -mRightMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10 * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI; // native units per 100ms
-    }
-    public double GetGyroAngleInRadians() {
-        return Math.toRadians( mIMU.getAngle() );
+
+    /**
+    * This method will calibrate the IMU.
+    */
+    public void CalibrateIMU() {
+        mIMU.calibrate();
     }
 
-
-    public DifferentialDriveWheelSpeeds getWheelSpeeds() {
-        return new DifferentialDriveWheelSpeeds( GetLeftVelocityMetersPerSecond(), GetRightVelocityMetersPerSecond() );
-    }
-
-    public Pose2d getPose() {
-       return mOdometry.getPoseMeters();
-    }
-
-    public double getHeading() {
-        return mIMU.getRotation2d().getDegrees();
-    }
-
-    public double getTurnRate() {
-        return -mIMU.getRate();
-    }
-
-    public void zeroHeading() {
-        mIMU.reset();
-    }
-
-    public double getAverageEncoderDistance() {
-        double leftPositionInMeters = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
-        double rightPositionInMeters = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
-        return ( leftPositionInMeters + rightPositionInMeters ) / 2.0;
-     }
-
-    public void resetOdometry( Pose2d pose ) {
-        resetEncoders();
-        mOdometry.resetPosition( pose, mIMU.getRotation2d() );
-    }
-
-    public void resetEncoders() {
-        mLeftMaster.setSelectedSensorPosition( 0.0 );
-        mRightMaster.setSelectedSensorPosition( 0.0 );
-    }
-
+    /**
+    * This method will set the IMU calibration time to 8 seconds.
+    */
     public void ConfigureIMU() {
         mIMU.configCalTime(ADIS16470_IMU.ADIS16470CalibrationTime._8s);
     }
 
+    /**
+    * This method will reset the IMU.
+    */
     public void ResetIMU() {
         mIMU.reset();
     }
 
-    public void CalibrateIMU() {
-        mIMU.calibrate();
-    }
+
+
+
+
     
-
     /**
-    * This method will output data to the smart dashboard.  This data is displayed at the driver's station and is meant
-    * to be aid the drive team.
-    */
-    public void OutputSmartDashboard () {
-        if ( IsHighGear() ) {
-          SmartDashboard.putString( "Gear", "High-Speed" );
-        } else {
-          SmartDashboard.putString( "Gear", "Low-Speed" );
-        }
-
-        if ( IsBrakeMode() ) {
-            SmartDashboard.putString( "Neutral Mode", "Brake" );
-        } else {
-            SmartDashboard.putString( "Neutral Mode", "Coast" );
-        }
-
-        if( IsReversedDirection() ) {
-            SmartDashboard.putString( "Reversed Mode", "True" );
-        } else {
-            SmartDashboard.putString( "Reversed Mode", "False" );
-        }
-        SmartDashboard.putString( "Active Pipeline", mLimelightVisionControllerSharedState.currentPipeline.toString() );
-        SmartDashboard.putString( "Distance Estimator", mLimelightVisionControllerSharedState.distanceEstimator.toString() );
-        SmartDashboard.putBoolean( "Found Target", mLimelightVisionControllerSharedState.foundTarget );
-        SmartDashboard.putBoolean( "On Target", mLimelightVisionControllerSharedState.onTargetTurn );
-        SmartDashboard.putString( "Desired Command", mLimelightVisionControllerSharedState.desiredCommand.toString() );
-        SmartDashboard.putString( "Running Command", mLimelightVisionControllerSharedState.currentCommand.toString() );
-        SmartDashboard.putString( "Vision State", mLimelightVisionControllerSharedState.visionState.toString() );
-        SmartDashboard.putString( "Failing State", mLimelightVisionControllerSharedState.failState.toString() );
-        SmartDashboard.putNumber( "Gyro Heading", getHeading() );
-        SmartDashboard.putNumber( "Left Encoder Distance", GetLeftPositionMeters() );
-        SmartDashboard.putNumber( "Right Encoder Distance", GetRightPositionMeters() );
-        SmartDashboard.putNumber( "Left Encoder Velocity", GetLeftVelocityMetersPerSecond() );
-        SmartDashboard.putNumber( "Right Encoder Velocity", GetRightVelocityMetersPerSecond() );
+    * This method will initialize the drivetrain for trajectory following.
+    */ 
+    public void InitializeTrajectoryFollowing (Trajectory trajectory) {
+        mTrajectoryToFollow = trajectory;
+        var initialState = mTrajectoryToFollow.sample( 0 );
+        mPreviousWheelSpeeds = mDriveKinematics.toWheelSpeeds( new ChassisSpeeds( initialState.velocityMetersPerSecond, 0, initialState.curvatureRadPerMeter * initialState.velocityMetersPerSecond ) );
+        mLeftPIDController.reset();
+        mRightPIDController.reset();
+        resetOdometry( mTrajectoryToFollow.getInitialPose() );
     }
 
+    /**
+    * This method will updated the drivetrain trajectory following outputs.
+    */ 
+    public void UpdateTrajectoryFollowing (double currentTime, double dt) {
+        
+        var currentState = mTrajectoryToFollow.sample( currentTime );
+        var targetWheelSpeeds = mDriveKinematics.toWheelSpeeds( mRamseteConroller.calculate( getPose(), currentState ) );
+        var leftSpeedSetpoint = targetWheelSpeeds.leftMetersPerSecond;
+        var rightSpeedSetpoint = targetWheelSpeeds.rightMetersPerSecond;
 
+        double leftFeedforward = mFeedforward.calculate( leftSpeedSetpoint, (leftSpeedSetpoint - mPreviousWheelSpeeds.leftMetersPerSecond) / dt);
+        double rightFeedforward = mFeedforward.calculate( rightSpeedSetpoint, (rightSpeedSetpoint - mPreviousWheelSpeeds.rightMetersPerSecond) / dt);
+        double leftOutput = leftFeedforward + mLeftPIDController.calculate( getWheelSpeeds().leftMetersPerSecond, leftSpeedSetpoint);
+        double rightOutput = rightFeedforward + mRightPIDController.calculate( getWheelSpeeds().rightMetersPerSecond, rightSpeedSetpoint);
 
+        SetOpenLoopOutput( leftOutput, rightOutput );
+        mPreviousWheelSpeeds = targetWheelSpeeds;
+        
+    }
 
     /**
-    * This method will return all of the logging data.
+    * This method will return the left-side sensor position in rotations.
     *
-    * @return LoggingData A class holding all of the logging data
+    * @return double
     */
-    // public LoggingData GetLoggingData () {
-    //     return mLoggingData;
-    // }
+    public double GetLeftPositionRotations() {
+        return mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER;
+    }
+
+    /**
+    * This method will return the right-side sensor position in rotations.
+    *
+    * @return double
+    */
+    public double GetRightPositionRotations() {
+        return mRightMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER;
+    }
+
+    /**
+    * This method will return the left-side sensor velocity in rotations per second.
+    *
+    * @return double
+    */
+    public double GetLeftVelocityRotationsPerSecond() {
+        return mLeftMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10; // native units per 100ms
+    }
+
+    /**
+    * This method will return the right-side sensor velocity in rotations per second.
+    *
+    * @return double
+    */
+    public double GetRightVelocityRotationsPerSecond() {
+        return mRightMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10; // native units per 100ms
+    }
 
 
     //-----------------------------------------------------------------------------------------------------------------
     /*                                                PRIVATE METHODS                                                */
     //-----------------------------------------------------------------------------------------------------------------
-    
+
+
+    /**
+    * This method will return the left-side sensor position in meters.
+    *
+    * @return double
+    */
+    private double GetLeftPositionMeters() {
+        return mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+    }
+
+    /**
+    * This method will return the right-side sensor position in meters.
+    *
+    * @return double
+    */
+    private double GetRightPositionMeters() {
+        return -mRightMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+    }
+
+    /**
+    * This method will return the left-side sensor velocity in meters per second.
+    *
+    * @return double
+    */
+    private double GetLeftVelocityMetersPerSecond() {
+        return mLeftMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10 * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI; // native units per 100ms
+    }
+
+    /**
+    * This method will return the right-side sensor velocity in meters per second.
+    *
+    * @return double
+    */
+    private double GetRightVelocityMetersPerSecond() {
+        return -mRightMaster.getSelectedSensorVelocity() * ENCODER_MULTIPLIER * 10 * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI; // native units per 100ms
+    }
+
+    public double GetGyroAngleInRadians() {
+        return Math.toRadians( mIMU.getAngle() );
+    }
+
+    private DifferentialDriveWheelSpeeds getWheelSpeeds() {
+        return new DifferentialDriveWheelSpeeds( GetLeftVelocityMetersPerSecond(), GetRightVelocityMetersPerSecond() );
+    }
+
+    private Pose2d getPose() {
+       return mOdometry.getPoseMeters();
+    }
+
+    private double getHeading() {
+        return mIMU.getRotation2d().getDegrees();
+    }
+
+    private double getTurnRate() {
+        return -mIMU.getRate();
+    }
+
+    private void zeroHeading() {
+        mIMU.reset();
+    }
+
+    private double getAverageEncoderDistance() {
+        double leftPositionInMeters = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+        double rightPositionInMeters = mLeftMaster.getSelectedSensorPosition() * ENCODER_MULTIPLIER * DRIVETRAIN.WHEEL_DIAMETER_METERS * Math.PI;
+        return ( leftPositionInMeters + rightPositionInMeters ) / 2.0;
+     }
+
+     private void resetOdometry( Pose2d pose ) {
+        resetEncoders();
+        mOdometry.resetPosition( pose, mIMU.getRotation2d() );
+    }
+
+    private void resetEncoders() {
+        mLeftMaster.setSelectedSensorPosition( 0.0 );
+        mRightMaster.setSelectedSensorPosition( 0.0 );
+    }
+
 
     /**
     * This method will initialize the Drivetrain subsystem.
@@ -473,9 +501,10 @@ public class Drivetrain extends SubsystemBase {
     * @param shifter DoubleSolenoid A double solenoid object for shifting the transmission
     * @param imu ADIS16470_IMU An Analog Devices 16470 IMU object
     */  
-    public Drivetrain ( WPI_TalonSRX leftMaster, WPI_VictorSPX leftFollower_1, WPI_VictorSPX leftFollower_2,
-                        WPI_TalonSRX rightMaster, WPI_VictorSPX rightFollower_1, WPI_VictorSPX rightFollower_2,
-                        LimelightVision limelightVision, DoubleSolenoid shifter, ADIS16470_IMU imu ) {
+    // public Drivetrain ( WPI_TalonSRX leftMaster, WPI_VictorSPX leftFollower_1, WPI_VictorSPX leftFollower_2,
+    //                     WPI_TalonSRX rightMaster, WPI_VictorSPX rightFollower_1, WPI_VictorSPX rightFollower_2,
+    //                     LimelightVision limelightVision, DoubleSolenoid shifter, ADIS16470_IMU imu ) {
+    public Drivetrain ( WPI_TalonSRX leftMaster, WPI_VictorSPX leftFollower_1, WPI_VictorSPX leftFollower_2,WPI_TalonSRX rightMaster, WPI_VictorSPX rightFollower_1, WPI_VictorSPX rightFollower_2, DoubleSolenoid shifter, ADIS16470_IMU imu ) {
         mLeftMaster = leftMaster;
         mLeftFollower_1 = leftFollower_1; 
         mLeftFollower_2 = leftFollower_2;
@@ -488,13 +517,12 @@ public class Drivetrain extends SubsystemBase {
         mRightSpeedControllerGroup = new SpeedControllerGroup(rightMaster, rightFollower_1, rightFollower_2);
         mDifferentialDrive = new DifferentialDrive( mLeftSpeedControllerGroup, mRightSpeedControllerGroup );
         mOdometry = new DifferentialDriveOdometry( mIMU.getRotation2d() );
-        mLimelightVisionController = limelightVision;
-        mLimelightVisionControllerSharedState = mLimelightVisionController.GetSharedState();
-        //mLoggingData = new LoggingData( mLimelightVisionControllerSharedState );
-        if ( DRIVETRAIN.VISION_THREADED ) {
-            mLimelightVisionControllerThread = new Notifier ( mLimelightVisionController.mThread ); 
-            mLimelightVisionControllerThread.startPeriodic( 0.01 );
-        }
+        // mLimelightVisionController = limelightVision;
+        // mLimelightVisionControllerSharedState = mLimelightVisionController.GetSharedState();
+        // if ( DRIVETRAIN.VISION_THREADED ) {
+        //     mLimelightVisionControllerThread = new Notifier ( mLimelightVisionController.mThread ); 
+        //     mLimelightVisionControllerThread.startPeriodic( 0.01 );
+        // }
         Initialize();
     }
 
@@ -511,30 +539,29 @@ public class Drivetrain extends SubsystemBase {
         WPI_VictorSPX rightFollower_2 = new WPI_VictorSPX( DRIVETRAIN.RIGHT_FOLLOWER_2_ID );
         DoubleSolenoid shifter = new DoubleSolenoid( HARDWARE.PCM_ID, DRIVETRAIN.HIGH_GEAR_SOLENOID_ID, 
                                                      DRIVETRAIN.LOW_GEAR_SOLENOID_ID );
-        LimelightVision limelightVision = LimelightVision.Create( DRIVETRAIN.VISION_SEARCH_TIMEOUT_S,
-                                                                  DRIVETRAIN.VISION_SEEK_TIMEOUT_S,
-                                                                  DRIVETRAIN.VISION_SEEK_RETRY_LIMIT,
-                                                                  DRIVETRAIN.VISION_TURN_PID_P,
-                                                                  DRIVETRAIN.VISION_TURN_PID_I,
-                                                                  DRIVETRAIN.VISION_TURN_PID_D,
-                                                                  DRIVETRAIN.VISION_TURN_PID_F,
-                                                                  DRIVETRAIN.VISION_DISTANCE_PID_P,
-                                                                  DRIVETRAIN.VISION_DISTANCE_PID_I,
-                                                                  DRIVETRAIN.VISION_DISTANCE_PID_D,
-                                                                  DRIVETRAIN.VISION_DISTANCE_PID_F,
-                                                                  DRIVETRAIN.VISION_ON_TARGET_TURN_THRESHOLD_DEG,
-                                                                  DRIVETRAIN.VISION_ON_TARGET_DISTANCE_THRESHOLD_FT,
-                                                                  DRIVETRAIN.VISION_DISTANCE_ESTIMATOR,
-                                                                  DRIVETRAIN.VISION_TARGET_WIDTH_FT,
-                                                                  DRIVETRAIN.VISION_FOCAL_LENGTH_FT,
-                                                                  DRIVETRAIN.VISION_FLOOR_TO_TARGET_FT,
-                                                                  DRIVETRAIN.VISION_FLOOR_TO_LIMELIGHT_FT,
-                                                                  DRIVETRAIN.VISION_LIMELIGHT_MOUNT_ANGLE_DEG );
-
+        // LimelightVision limelightVision = LimelightVision.Create( DRIVETRAIN.VISION_SEARCH_TIMEOUT_S,
+        //                                                           DRIVETRAIN.VISION_SEEK_TIMEOUT_S,
+        //                                                           DRIVETRAIN.VISION_SEEK_RETRY_LIMIT,
+        //                                                           DRIVETRAIN.VISION_TURN_PID_P,
+        //                                                           DRIVETRAIN.VISION_TURN_PID_I,
+        //                                                           DRIVETRAIN.VISION_TURN_PID_D,
+        //                                                           DRIVETRAIN.VISION_TURN_PID_F,
+        //                                                           DRIVETRAIN.VISION_DISTANCE_PID_P,
+        //                                                           DRIVETRAIN.VISION_DISTANCE_PID_I,
+        //                                                           DRIVETRAIN.VISION_DISTANCE_PID_D,
+        //                                                           DRIVETRAIN.VISION_DISTANCE_PID_F,
+        //                                                           DRIVETRAIN.VISION_ON_TARGET_TURN_THRESHOLD_DEG,
+        //                                                           DRIVETRAIN.VISION_ON_TARGET_DISTANCE_THRESHOLD_FT,
+        //                                                           DRIVETRAIN.VISION_DISTANCE_ESTIMATOR,
+        //                                                           DRIVETRAIN.VISION_TARGET_WIDTH_FT,
+        //                                                           DRIVETRAIN.VISION_FOCAL_LENGTH_FT,
+        //                                                           DRIVETRAIN.VISION_FLOOR_TO_TARGET_FT,
+        //                                                           DRIVETRAIN.VISION_FLOOR_TO_LIMELIGHT_FT,
+        //                                                           DRIVETRAIN.VISION_LIMELIGHT_MOUNT_ANGLE_DEG );
         ADIS16470_IMU imu = new ADIS16470_IMU(); 
-
-        return new Drivetrain( leftMaster, leftFollower_1, leftFollower_2, rightMaster, rightFollower_1,
-                               rightFollower_2, limelightVision, shifter, imu );
+        // return new Drivetrain( leftMaster, leftFollower_1, leftFollower_2, rightMaster, rightFollower_1,
+        //                        rightFollower_2, limelightVision, shifter, imu );
+        return new Drivetrain( leftMaster, leftFollower_1, leftFollower_2, rightMaster, rightFollower_1, rightFollower_2, shifter, imu );
     }
 
     /**
@@ -548,10 +575,14 @@ public class Drivetrain extends SubsystemBase {
         // if ( !DRIVETRAIN.VISION_THREADED ) {
         //     mLimelightVisionController.RunUpdate();
         // }
-        // mLimelightVisionControllerSharedState = mLimelightVisionController.GetSharedState();
-        // mLoggingData.mLimelightVisionSharedState = mLimelightVisionControllerSharedState;
+
         // The odometry class requires the gyro angle to be counter-clockwise increasing
-        mOdometry.update( Rotation2d.fromDegrees(mIMU.getAngle()), GetLeftPositionMeters(), GetRightPositionMeters() );
+        mOdometry.update( Rotation2d.fromDegrees( mIMU.getAngle()), GetLeftPositionMeters(), GetRightPositionMeters() );
+
+        // Get the coprocessor path
+        mWaypointsX_in = mWaypointsXEntry.getDoubleArray( mDefaultWaypoints );
+        mWaypointsX_in = mWaypointsYEntry.getDoubleArray( mDefaultWaypoints );
+        mPathValid = mPathValidEntry.getBoolean( false );
     }
 
 }

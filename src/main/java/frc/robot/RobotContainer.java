@@ -14,20 +14,15 @@ import frc.robot.Constants.PRESSURE_SENSOR;
 import frc.robot.lib.drivers.PressureSensor;
 import frc.robot.subsystems.Drivetrain;
 import frc.robot.commands.TeleopDrive;
-import frc.robot.commands.TurnToTarget;
-import frc.robot.commands.Auto1;
-import frc.robot.commands.Auto2;
-import frc.robot.commands.GoToTarget;
-import frc.robot.commands.RamseteTest;
+import frc.robot.commands.DrivetrainFollowTrajectory;
+import frc.robot.commands.CISVisionDriveToTarget;
 import edu.wpi.first.wpilibj.geometry.Pose2d;
 import edu.wpi.first.wpilibj.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.geometry.Translation2d;
 import edu.wpi.first.wpilibj.trajectory.Trajectory;
 import edu.wpi.first.wpilibj.trajectory.TrajectoryGenerator;
 import java.util.List;
-import edu.wpi.first.wpilibj.util.Units;
-
-import org.apache.logging.log4j.Logger;
+// import edu.wpi.first.wpilibj.util.Units;
 
 /**
 * The RobotContainer class contains the subsystems, button/joystick bindings
@@ -35,26 +30,6 @@ import org.apache.logging.log4j.Logger;
 */
 public class RobotContainer {
 
-    // State enumerations
-    public static enum MatchState_t {
-        robotInit { @Override public String toString() 
-            { return "Robot Init"; } },
-        robotPeriodic { @Override public String toString() 
-            { return "Robot Periodic"; } },
-        disabledInit { @Override public String toString() 
-            { return "Disabled Init"; } },
-        disabledPeriodic { @Override public String toString() 
-            { return "Disabled Periodic"; } },
-        autonomousInit { @Override public String toString() 
-            { return "Autonomous Init"; } },
-        autonomousPeriodic { @Override public String toString() 
-            { return "Autonomous Periodic"; } },
-        teleopInit { @Override public String toString() 
-            { return "Teleop Init"; } },
-        teleopPeriodic { @Override public String toString() 
-            { return "Teleop Periodic"; } };
-    }    
-    
     // Hardware
     private final Joystick mDriverJoystickThrottle;
     private final JoystickButton mDriverJoystickThrottleButton;
@@ -72,33 +47,40 @@ public class RobotContainer {
     // Autonomous chooser
     private SendableChooser<Command> mAutoChooser = new SendableChooser<>();
 
-    // State variables
-    private MatchState_t mMatchState;
-
-    // Logging
-    //private final String mLoggingHeader = "Time,Match State,Pressure (PSI),PDP Voltage,PDP Slot 0 Current";
-                               
     // Auto trajectories - the drivetrain object needs to be created before building trajectories
-    private final Trajectory exampleTrajectory;
+    private final Trajectory mAuto1Trajectory = TrajectoryGenerator.generateTrajectory(
+        new Pose2d(0, 0, new Rotation2d(0)),
+        List.of(new Translation2d(1, 0),
+                new Translation2d(2, 1)
+        ),
+        new Pose2d(3, 2, new Rotation2d( Math.toRadians(0.0) ) ),
+        mDrivetrain.mTrajectoryConfig );
+    private final Trajectory mAuto2Trajectory = TrajectoryGenerator.generateTrajectory(
+        new Pose2d(0, 0, new Rotation2d(0)),
+        List.of(new Translation2d(1, 0),
+                new Translation2d(2, -1)
+        ),
+        new Pose2d(3, -2, new Rotation2d( Math.toRadians(0.0) ) ),
+        mDrivetrain.mTrajectoryConfig );
 
 
-    /**
-    * This method will rturn the current match state.
-    *
-    * @return MatchState_t The current match state
-    */ 
-    public MatchState_t GetMatchState () {
-        return mMatchState;
-    }
+    // exampleTrajectory = TrajectoryGenerator.generateTrajectory(
+    //     new Pose2d(0, 0, new Rotation2d( Units.degreesToRadians(-45.0) )),
+    //         List.of(
+    //             new Translation2d(Units.inchesToMeters(54-48), Units.inchesToMeters(36-78)),
+    //             new Translation2d(Units.inchesToMeters(54-48), Units.inchesToMeters(36-108)),
+    //             new Translation2d(Units.inchesToMeters(80-48), Units.inchesToMeters(36-144)),
+    //             new Translation2d(Units.inchesToMeters(115-48), Units.inchesToMeters(36-167))
+    //         ),
+    //     new Pose2d(Units.inchesToMeters(145-48), Units.inchesToMeters(36-167), new Rotation2d( Units.degreesToRadians(0.0) )),
+    //     mDrivetrain.mTrajectoryConfig);
 
-    /**
-    * This method will set the current match state.
-    *
-    * @param matchState MatchState_t The match state
-    */ 
-    public void SetMatchState (MatchState_t matchState) {
-        mMatchState = matchState;
-    }
+
+
+    //-----------------------------------------------------------------------------------------------------------------
+    /*                                                PUBLIC METHODS                                                 */
+    //-----------------------------------------------------------------------------------------------------------------
+
 
     /**
     * This method will get the autonomous command to run from the autonomous
@@ -110,56 +92,23 @@ public class RobotContainer {
         return mAutoChooser.getSelected();
     }
 
-    /**
-    * This method will send output to the smart dashboard.
-    */
-    public void UpdateSmartDashboard() {
-        SmartDashboard.putNumber( "Pressure Sensor (PSI)", 
-            mPressureSensor.GetPressureInPSI() );
-        mDrivetrain.OutputSmartDashboard();
-    }
 
-    /**
-    * This method will write the debugging log file header.
-    *
-    * @param fileLogger Logger The logger to write the header to
-    */ 
-    public void LogRobotDataHeader ( Logger fileLogger ) {
-        //fileLogger.debug( mLoggingHeader + "," + mDrivetrain.mLoggingHeader );
-    }   
+    //-----------------------------------------------------------------------------------------------------------------
+    /*                                                PRIVATE METHODS                                                */
+    //-----------------------------------------------------------------------------------------------------------------
 
-    /**
-    * This method will write data to the debugging log file.
-    *
-    * @param fileLogger Logger The logger to write the data to
-    */
-    public void LogRobotDataToRoboRio ( Logger fileLogger ) {
-        // fileLogger.debug( "{},{},{},{},{},{}", 
-        //                   Timer.getFPGATimestamp(),
-        //                   mMatchState.toString(),
-        //                   mPressureSensor.GetPressureInPSI(),
-        //                   mPDP.getVoltage(),
-        //                   mPDP.getCurrent( DRIVETRAIN.LEFT_MASTER_ID )
-        //                   );
-    }
+
 
     /**
     * This method will configure the joysticks and buttons. This means commands
     * and their behaviours will be assigned to the driver/operators controls.
     */
     private void ConfigureButtonBindings () {
-        mDriverJoystickThrottleButton.whenPressed( new InstantCommand( () -> 
-            mDrivetrain.SetHighGear( 
-                !mDrivetrain.IsHighGear() ), mDrivetrain ) );
-        // mDriverButtonBoard_2.whileHeld( new DriveToTarget( 
-        //     mDrivetrain, 3.5 ) );
-        mDriverButtonBoard_2.whenPressed( new GoToTarget( 
-            mDrivetrain) );        
-        mDriverJoystickTurnButton.whenPressed( new InstantCommand( () -> 
-            mDrivetrain.SetReversedDirection( 
-                !mDrivetrain.IsReversedDirection() ), mDrivetrain ) );
-        mDriverButtonBoard_3.whileHeld( new TurnToTarget( mDrivetrain, 
-            mDriverJoystickThrottle ) );
+        mDriverJoystickThrottleButton.whenPressed( new InstantCommand( () -> mDrivetrain.SetHighGear( !mDrivetrain.IsHighGear() ), mDrivetrain ) );
+        // mDriverButtonBoard_2.whileHeld( new DriveToTarget( mDrivetrain, 3.5 ) );
+        mDriverButtonBoard_2.whenPressed( new CISVisionDriveToTarget( mDrivetrain ) );        
+        mDriverJoystickTurnButton.whenPressed( new InstantCommand( () -> mDrivetrain.SetReversedDirection( !mDrivetrain.IsReversedDirection() ), mDrivetrain ) );
+        // mDriverButtonBoard_3.whileHeld( new TurnToTarget( mDrivetrain, mDriverJoystickThrottle ) );
     }
 
     /**
@@ -169,17 +118,20 @@ public class RobotContainer {
     * clearing faults in the PCM and PDP.
     */
     private void Initialize () {
-        mMatchState = MatchState_t.robotInit;
         ConfigureButtonBindings();
-        mDrivetrain.setDefaultCommand( new TeleopDrive( 
-            mDrivetrain, mDriverJoystickThrottle, mDriverJoystickTurn ) );
-        mAutoChooser.setDefaultOption( "Auto 1", new Auto1( mDrivetrain ) );
-        mAutoChooser.addOption( "Auto 2", new Auto2( mDrivetrain ) );
-        mAutoChooser.addOption( "RamseteTest", new RamseteTest( mDrivetrain, exampleTrajectory ) );
+        mDrivetrain.setDefaultCommand( new TeleopDrive( mDrivetrain, mDriverJoystickThrottle, mDriverJoystickTurn ) );
+        mAutoChooser.setDefaultOption( "Auto 1", new DrivetrainFollowTrajectory( mDrivetrain, mAuto1Trajectory ) );
+        mAutoChooser.addOption( "Auto 2", new DrivetrainFollowTrajectory( mDrivetrain, mAuto2Trajectory ) );
         SmartDashboard.putData( "Auto Chooser", mAutoChooser );
         mPDP.clearStickyFaults();
         SolenoidBase.clearAllPCMStickyFaults( HARDWARE.PCM_ID );        
     }
+
+
+    //-----------------------------------------------------------------------------------------------------------------
+    /*                                        CLASS CONSTRUCTOR AND OVERRIDES                                        */
+    //-----------------------------------------------------------------------------------------------------------------
+
 
     /**
     * This is the robot container class consructor. It is setup for injecting
@@ -195,12 +147,7 @@ public class RobotContainer {
     * @param pressureSensor PressureSensor Analog pressure sensor
     * @param powerDistributionPanel PowerDistributionPanel power distribution panel
     */
-    public RobotContainer ( 
-        Joystick driverJoystickThrottle, JoystickButton driverJoystickThrottleButton,
-        Joystick driverJoystickTurn, JoystickButton driverJoystickTurnButton,
-        JoystickButton driverButtonBoard_2, JoystickButton driverButtonBoard_3,
-        PressureSensor pressureSensor, PowerDistributionPanel powerDistributionPanel ) {
-
+    public RobotContainer ( Joystick driverJoystickThrottle, JoystickButton driverJoystickThrottleButton, Joystick driverJoystickTurn, JoystickButton driverJoystickTurnButton, JoystickButton driverButtonBoard_2, JoystickButton driverButtonBoard_3, PressureSensor pressureSensor, PowerDistributionPanel powerDistributionPanel ) {
         mDriverJoystickThrottle = driverJoystickThrottle;
         mDriverJoystickThrottleButton = driverJoystickThrottleButton;
         mDriverJoystickTurn = driverJoystickTurn;
@@ -209,30 +156,6 @@ public class RobotContainer {
         mDriverButtonBoard_3 = driverButtonBoard_3;
         mPressureSensor = pressureSensor;
         mPDP = powerDistributionPanel;
-        // exampleTrajectory = TrajectoryGenerator.generateTrajectory(
-        //     new Pose2d(0, 0, new Rotation2d(0)),
-        //         List.of(
-        //                 new Translation2d(1, 0),
-        //                 new Translation2d(2, 1)
-        //                 // new Translation2d(1, 1),
-        //                 // new Translation2d(2, -1)
-        //                 // new Translation2d(1, 0),
-        //                 // new Translation2d(2, 0)
-        //         ),
-        //     new Pose2d(3, 2, new Rotation2d( Math.toRadians(0.0) )),
-        //     mDrivetrain.mTrajectoryConfig);
-
-        exampleTrajectory = TrajectoryGenerator.generateTrajectory(
-            new Pose2d(0, 0, new Rotation2d( Units.degreesToRadians(-45.0) )),
-                List.of(
-                    new Translation2d(Units.inchesToMeters(54-48), Units.inchesToMeters(36-78)),
-                    new Translation2d(Units.inchesToMeters(54-48), Units.inchesToMeters(36-108)),
-                    new Translation2d(Units.inchesToMeters(80-48), Units.inchesToMeters(36-144)),
-                    new Translation2d(Units.inchesToMeters(115-48), Units.inchesToMeters(36-167))
-                ),
-            new Pose2d(Units.inchesToMeters(145-48), Units.inchesToMeters(36-167), new Rotation2d( Units.degreesToRadians(0.0) )),
-            mDrivetrain.mTrajectoryConfig);
-
         Initialize();
     }
 
@@ -243,30 +166,17 @@ public class RobotContainer {
     * @see {@link frc.robot.lib.drivers.PressureSensor}
     */   
     public static RobotContainer Create () {
-        Joystick driverJoystickThrottle = new Joystick( 
-            DRIVER.JOYSTICK_THROTTLE );
-        JoystickButton driverJoystickThrottleButton = new JoystickButton( 
-            driverJoystickThrottle, 1 );
+        Joystick driverJoystickThrottle = new Joystick( DRIVER.JOYSTICK_THROTTLE );
+        JoystickButton driverJoystickThrottleButton = new JoystickButton( driverJoystickThrottle, 1 );
         Joystick driverJoystickTurn = new Joystick( DRIVER.JOYSTICK_TURN );
-        JoystickButton driverJoystickTurnButton = new JoystickButton( 
-            driverJoystickTurn, 1 );
-        final Joystick driverButtonBoard = new Joystick( 
-            DRIVER.DRIVER_BUTTON_BOARD );
-        JoystickButton driverButtonBoard_2 = new JoystickButton( 
-            driverButtonBoard, 2 );
-        JoystickButton driverButtonBoard_3 = new JoystickButton( 
-            driverButtonBoard, 3 );
-        PressureSensor pressureSensor = new PressureSensor( 
-            PRESSURE_SENSOR.ANALOG_CHANNEL,
-            PRESSURE_SENSOR.VOLTS_AT_ZERO_PRESSURE,
-            PRESSURE_SENSOR.PSI_PER_VOLT );
-        PowerDistributionPanel powerDistributionPanel = new PowerDistributionPanel( 
-            HARDWARE.PDP_ID );
+        JoystickButton driverJoystickTurnButton = new JoystickButton( driverJoystickTurn, 1 );
+        final Joystick driverButtonBoard = new Joystick( DRIVER.DRIVER_BUTTON_BOARD );
+        JoystickButton driverButtonBoard_2 = new JoystickButton( driverButtonBoard, 2 );
+        JoystickButton driverButtonBoard_3 = new JoystickButton( driverButtonBoard, 3 );
+        PressureSensor pressureSensor = new PressureSensor( PRESSURE_SENSOR.ANALOG_CHANNEL, PRESSURE_SENSOR.VOLTS_AT_ZERO_PRESSURE, PRESSURE_SENSOR.PSI_PER_VOLT );
+        PowerDistributionPanel powerDistributionPanel = new PowerDistributionPanel( HARDWARE.PDP_ID );
 
-        return new RobotContainer( 
-            driverJoystickThrottle, driverJoystickThrottleButton, driverJoystickTurn,
-            driverJoystickTurnButton, driverButtonBoard_2, driverButtonBoard_3,
-            pressureSensor, powerDistributionPanel );
+        return new RobotContainer( driverJoystickThrottle, driverJoystickThrottleButton, driverJoystickTurn, driverJoystickTurnButton, driverButtonBoard_2, driverButtonBoard_3, pressureSensor, powerDistributionPanel );
     }
 
 }
