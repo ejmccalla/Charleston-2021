@@ -21,6 +21,7 @@ import edu.wpi.first.wpilibj.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.wpilibj.trajectory.TrajectoryConfig;
 import edu.wpi.first.wpilibj.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.wpilibj.trajectory.constraint.DifferentialDriveVoltageConstraint;
+import edu.wpi.first.wpilibj.util.Units;
 import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward;
 import edu.wpi.first.wpilibj.controller.RamseteController;
 import edu.wpi.first.wpilibj.controller.PIDController;
@@ -82,12 +83,26 @@ public class Drivetrain extends SubsystemBase {
     private DifferentialDriveWheelSpeeds mPreviousWheelSpeeds;
 
     // Coprocessor
-    private NetworkTableEntry mWaypointsXEntry = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Waypoints_x_in");
-    private NetworkTableEntry mWaypointsYEntry = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Waypoints_y_in");
+    private NetworkTableEntry mWaypointsXEntry_in = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Waypoints_x_in");
+    private NetworkTableEntry mWaypointsYEntry_in = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Waypoints_y_in");
     private NetworkTableEntry mPathValidEntry = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Path_Valid");
-    private double[] mDefaultWaypoints = new double[0];
-    public double[] mWaypointsX_in = mDefaultWaypoints;
-    public double[] mWaypointsY_in = mDefaultWaypoints;
+    private NetworkTableEntry mRobotXEntry_in = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Robot_x_in");
+    private NetworkTableEntry mRobotYEntry_in = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Robot_y_in");
+    private NetworkTableEntry mRobotHeadingEntry_rad = NetworkTableInstance.getDefault().getEntry("/Coprocessor/Robot_heading_rad");
+    // ----- DEBUG -----
+    // private double[] mDefaultWaypoints_x_in = new double[] {36.0};  // 2 point case
+    // private double[] mDefaultWaypoints_y_in = new double[] { 0.0};  // 2 point case
+    // private double[] mDefaultWaypoints_x_in = new double[] {36.0, 72.0};    // 3 point case
+    // private double[] mDefaultWaypoints_y_in = new double[] { 0.0, 36.0};    // 3 point case
+    // private double[] mDefaultWaypoints_x_in = new double[] {36.0, 72.0, 108.0};    // short base case
+    // private double[] mDefaultWaypoints_y_in = new double[] { 0.0, 36.0,  36.0};    // short base case
+    // private double[] mDefaultWaypoints_x_in = new double[] {24, 48, 72, 96, 120, 144, 168, 192, 216, 240, 264, 288, 312 }; // half field base case
+    // private double[] mDefaultWaypoints_y_in = new double[] { 0,  2,  0, -2,   0,   2,   0,  -2,   0,   2,   0,  -2,   0 }; // half field base case
+    // ----- DEBUG -----
+    private double[] mDefaultWaypoints_x_in = new double[0];
+    private double[] mDefaultWaypoints_y_in = new double[0];
+    public double[] mWaypointsX_in = mDefaultWaypoints_x_in;
+    public double[] mWaypointsY_in = mDefaultWaypoints_y_in;
     public boolean mPathValid = false;
 
 
@@ -276,11 +291,6 @@ public class Drivetrain extends SubsystemBase {
     public void ResetIMU() {
         mIMU.reset();
     }
-
-
-
-
-
     
     /**
     * This method will initialize the drivetrain for trajectory following.
@@ -579,10 +589,21 @@ public class Drivetrain extends SubsystemBase {
         // The odometry class requires the gyro angle to be counter-clockwise increasing
         mOdometry.update( Rotation2d.fromDegrees( mIMU.getAngle()), GetLeftPositionMeters(), GetRightPositionMeters() );
 
-        // Get the coprocessor path
-        mWaypointsX_in = mWaypointsXEntry.getDoubleArray( mDefaultWaypoints );
-        mWaypointsX_in = mWaypointsYEntry.getDoubleArray( mDefaultWaypoints );
+        // Get the coprocessor path. TODO: Look into moving this and the
+        // trajectory generation into a separate thread so it doens't
+        // block the driver teleop commands.
+        mWaypointsX_in = mWaypointsXEntry_in.getDoubleArray( mDefaultWaypoints_x_in );
+        mWaypointsX_in = mWaypointsYEntry_in.getDoubleArray( mDefaultWaypoints_y_in );
         mPathValid = mPathValidEntry.getBoolean( false );
+
+        // Set the starting pose for the coprocessor, this is needed to
+        // transform the target coordinates, which are relive to the
+        // camera, to the field coordinate frame.
+        var currentPose = getPose();
+        mRobotXEntry_in.setDouble( Units.metersToInches( currentPose.getX() ) );
+        mRobotYEntry_in.setDouble( Units.metersToInches( currentPose.getY() ) );
+        mRobotHeadingEntry_rad.setDouble( currentPose.getRotation().getRadians() );
+    
     }
 
 }

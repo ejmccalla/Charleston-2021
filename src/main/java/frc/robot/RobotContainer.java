@@ -64,19 +64,6 @@ public class RobotContainer {
         mDrivetrain.mTrajectoryConfig );
 
 
-    // exampleTrajectory = TrajectoryGenerator.generateTrajectory(
-    //     new Pose2d(0, 0, new Rotation2d( Units.degreesToRadians(-45.0) )),
-    //         List.of(
-    //             new Translation2d(Units.inchesToMeters(54-48), Units.inchesToMeters(36-78)),
-    //             new Translation2d(Units.inchesToMeters(54-48), Units.inchesToMeters(36-108)),
-    //             new Translation2d(Units.inchesToMeters(80-48), Units.inchesToMeters(36-144)),
-    //             new Translation2d(Units.inchesToMeters(115-48), Units.inchesToMeters(36-167))
-    //         ),
-    //     new Pose2d(Units.inchesToMeters(145-48), Units.inchesToMeters(36-167), new Rotation2d( Units.degreesToRadians(0.0) )),
-    //     mDrivetrain.mTrajectoryConfig);
-
-
-
     //-----------------------------------------------------------------------------------------------------------------
     /*                                                PUBLIC METHODS                                                 */
     //-----------------------------------------------------------------------------------------------------------------

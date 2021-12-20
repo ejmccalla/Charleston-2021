@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
 import edu.wpi.first.wpilibj.util.Units;
+// import edu.wpi.first.networktables.NetworkTableEntry;
+// import edu.wpi.first.networktables.NetworkTableInstance;
 
 public class CISVisionDriveToTarget extends CommandBase {
     @SuppressWarnings( { "PMD.UnusedPrivateField", "PMD.SingularField" } )
@@ -23,6 +25,9 @@ public class CISVisionDriveToTarget extends CommandBase {
 
     @Override
     public void initialize() {
+        // // ----- DEBUG -----
+        // double start = Timer.getFPGATimestamp();
+        // // ----- DEBUG -----
         int numPoints = mDrivetrain.mWaypointsX_in.length;
         Pose2d startingPose = new Pose2d( 0.0, 0.0, new Rotation2d( mDrivetrain.GetGyroAngleInRadians() ) );
         List<Translation2d> translationPoints = new ArrayList<Translation2d>();
@@ -30,20 +35,20 @@ public class CISVisionDriveToTarget extends CommandBase {
 
         /**
         *   The waypoints being sent out by the coprocessor are all relative to the current
-        *   pose of the robot. When building the trajectories, the first waypoint will be
+        *   pose of the robot. When building the trajectories, the first waypoint will always be
         *   the current pose of the robot and doesn't need to be sent over with the list of
         *   waypoints. Since the trajectory is being built using hermite cubic splines, we need to
-        *   handle the cases below for the number of waypoints:
+        *   handle the cases below:
         *
-        *   1 waypoint:
+        *   1 waypoint + implied starting pose:
         *       Use waypoint as the pose-defined endpoint and linearly interpolate the
         *       interior translations using the assumed starting waypoint 0,0.
         *   
-        *   2 waypoints:
+        *   2 waypoints + implied starting pose:
         *       Use the second waypoint as the pose-defined endpoint insert another waypoint
         *       using the two given waypoints.
         *   
-        *   3 waypoints:
+        *   3 waypoints + implied starting pose:
         *       There are enough points, no need to add any.
         *
         *   The end heading is currently being set to the vector direction of the final 2
@@ -51,7 +56,7 @@ public class CISVisionDriveToTarget extends CommandBase {
         */
         if ( numPoints < 1 ) {
             mTrajectory = new Trajectory(Arrays.asList(new Trajectory.State()));
-            //System.out.println("Not enough trajectory points");
+
         } else { 
             if ( numPoints == 1 ) {
                 double oneThirdX = mDrivetrain.mWaypointsX_in[0] / 3.0;
@@ -91,14 +96,28 @@ public class CISVisionDriveToTarget extends CommandBase {
             mTrajectory = TrajectoryGenerator.generateTrajectory( startingPose, translationPoints, endingPose, mDrivetrain.mTrajectoryConfig );
         }
 
-        // For debug...
-        mTrajectory = new Trajectory(Arrays.asList(new Trajectory.State()));
+        // // ----- DEBUG -----
+        // double trajectory_time = Timer.getFPGATimestamp() - start;
+        // NetworkTableEntry traj_time_entry = NetworkTableInstance.getDefault().getEntry("/robot/traj_time");
+        // String traj_time = traj_time_entry.getString("");
+        // traj_time = traj_time + "," + trajectory_time;
+        // traj_time_entry.setString(traj_time);
+        // System.out.println("Trajectory build time: " + trajectory_time );
+        // System.out.println("  Number of points (not including the starting point): " + numPoints );
+        // System.out.println("  Starting pose: " + startingPose );
+        // for (Translation2d t : translationPoints) {
+        //     System.out.println("  Translation: " + t );
+        // }
+        // System.out.println("  Ending pose: " + endingPose );
+        // mTrajectory = new Trajectory( Arrays.asList( new Trajectory.State() ) );
+        // // ----- DEBUG -----
 
         mDrivetrain.InitializeTrajectoryFollowing( mTrajectory );
         mPreviousTime = -1;
         mTimer.reset();
         mTimer.start();
     }
+
 
     @Override
     public void execute() {
@@ -119,6 +138,7 @@ public class CISVisionDriveToTarget extends CommandBase {
         mPreviousTime = currentTime;
     }
 
+
     @Override
     public void end( boolean interrupted ) {
         mTimer.stop();
@@ -128,10 +148,12 @@ public class CISVisionDriveToTarget extends CommandBase {
         }
     }
 
+
     @Override
     public boolean isFinished() {
         return mTimer.hasElapsed( mTrajectory.getTotalTimeSeconds() );
     }
+
 
     public CISVisionDriveToTarget( Drivetrain drivetrain ) {
         mDrivetrain = drivetrain;
